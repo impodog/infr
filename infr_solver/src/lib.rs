@@ -1,3 +1,4 @@
+pub mod consts;
 pub mod prelude;
 mod solver;
 
