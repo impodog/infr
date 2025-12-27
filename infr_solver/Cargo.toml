@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-z3 = { version = "0.19.6", default-features = false }
+z3 = { version = "0.19.6", default-features = false, features = ["z3_4_8_15"] }

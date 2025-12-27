@@ -1,4 +1,5 @@
+mod consistency;
 pub mod consts;
-mod object;
+mod solver;
 
-pub use object::*;
+pub use solver::*;
