@@ -1,5 +1,4 @@
 pub mod consts;
-pub mod prelude;
-mod solver;
+mod object;
 
-pub use solver::*;
+pub use object::*;
