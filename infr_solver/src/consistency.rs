@@ -2,6 +2,7 @@
 
 use crate::{Coord, Map, consts};
 
+/// The return result of `Map::check_contradiction`, describing rules and axioms that causes a contradiction.
 #[derive(Default, Debug, Clone)]
 pub struct Contradiction {
     pub rules: Vec<usize>,
