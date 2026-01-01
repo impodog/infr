@@ -31,6 +31,11 @@ impl Coord {
             y: self.y.wrapping_add(rhs.y),
         }
     }
+
+    /// Converts the coordinates to a list of 2 integers. This is used for Lua conversion.
+    pub fn to_list(&self) -> [i32; 2] {
+        [self.x, self.y]
+    }
 }
 impl std::ops::Add for Coord {
     type Output = Self;
@@ -232,12 +237,17 @@ impl Map {
         &self.groups
     }
 
+    /// Returns a zipped iterator over the objects and their groups.
+    pub fn object_and_groups(&self) -> impl Iterator<Item = (&Object, &Vec<String>)> {
+        self.objects.iter().zip(self.groups.iter())
+    }
+
     /// Adds an object to the map.
     pub fn push(&mut self, object: Object) {
         self.objects.push(object);
     }
 
-    /// Asserts an axiom before parsing map-local rules.
+    /// Asserts a z3 expression for general purposes.
     pub fn assert(&self, expr: &z3::ast::Bool) {
         self.solver.assert(expr);
     }
@@ -461,7 +471,7 @@ impl Map {
     /// For each Instance/Symbol and each relevant group given, proves and stores if it is in that group.
     ///
     /// The objects' order should not changed after calling `Self::build_solver`, so you can correspond each stored `Self::groups` with each object.
-    pub fn prove_groups(&mut self, relevant_groups: BTreeSet<String>) {
+    pub fn prove_groups(&mut self, relevant_groups: &BTreeSet<String>) {
         let mut groups = Vec::<Vec<String>>::new();
         for (index, object) in self.objects.iter().enumerate() {
             groups.push(Default::default());

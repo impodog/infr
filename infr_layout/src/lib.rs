@@ -1,7 +1,8 @@
 //! Stores representation of game layout, loads external lua movements, and parses movements.
 
+#![feature(generic_atomic)]
+
 mod layout;
 pub use layout::*;
 
-mod script;
-pub use script::*;
+pub mod script;

@@ -1,3 +1,11 @@
+use crate::script::*;
+use mlua::prelude::*;
+
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    sync::{Arc, RwLock},
+};
+
 use infr_solver::*;
 
 /// Describes the manner of movement.
@@ -34,6 +42,23 @@ pub enum InfrError {
     /// The external script returns an unexpected error.
     Script(mlua::Error),
 }
+impl From<infr_solver::Contradiction> for InfrError {
+    fn from(value: infr_solver::Contradiction) -> Self {
+        Self::Contradiction(value)
+    }
+}
+impl From<Coord> for InfrError {
+    fn from(value: Coord) -> Self {
+        Self::Overlap(value)
+    }
+}
+impl From<mlua::Error> for InfrError {
+    fn from(value: mlua::Error) -> Self {
+        Self::Script(value)
+    }
+}
+
+pub type ArcMap = Arc<RwLock<Map>>;
 
 /// Represents the game layout and parses movements.
 #[derive(Debug)]
@@ -51,11 +76,66 @@ impl Layout {
         }
     }
 
+    /// Does the chores: initializes map for logic check. Returns all relevant groups.
+    ///
+    /// You must call `self.map.revert` after this function.
+    fn init_map(&mut self) -> Result<BTreeSet<String>, InfrError> {
+        self.map.parse();
+        self.map.build_solver();
+        let relevant_groups = self.map.get_relevant_groups();
+        self.map.prove_groups(&relevant_groups);
+        self.map.check_contradiction()?;
+        self.map.check_overlap()?;
+        Ok(relevant_groups)
+    }
+
+    /// Converts current map status to a lua value.
+    fn convert_to_lua(&self, lua: &Lua) -> Result<LuaValue, InfrError> {
+        let mut objects = BTreeMap::<Coord, Vec<Vec<String>>>::new();
+        for (object, groups) in self.map.object_and_groups() {
+            objects
+                .entry(object.coord)
+                .or_default()
+                .push(groups.clone());
+        }
+        let table = lua.create_table()?;
+        for (coord, groups) in objects.into_iter() {
+            table.set(coord.to_list(), groups)?;
+        }
+        Ok(LuaValue::Table(table))
+    }
+
     /// Initializes the movements with a signal. This will also clear any previous record of movement or errors.
     ///
     /// You should call `Self::step` repeatedly to parse the subsequent movements.
     /// You must call `Self::clear` after all movements are parsed.
-    pub fn init(&mut self, input: Signal) -> Result<(), InfrError> {
-        todo!()
+    pub fn init(&mut self, input: Signal, lua: &Lua, scripts: &Scripts) -> Result<(), InfrError> {
+        let relevant_groups = self.init_map()?;
+        let table = self.convert_to_lua(lua)?;
+        for (object, groups) in self.map.object_and_groups() {
+            for group in groups.iter() {
+                if let Some(id) = scripts.feature_names.lock().unwrap().get(group).copied() {
+                    let features = scripts.features.lock().unwrap();
+                    match features.get(&id) {
+                        Some(feature) => {
+                            if let Some(ref on_input) = feature.on_input {
+                                todo!()
+                            }
+                        }
+                        None => {
+                            log::error!(
+                                concat!(
+                                    "Feature {} is registered without feature implementation. ",
+                                    "This shouldn't be possible with lua scripts."
+                                ),
+                                group
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        self.map.revert();
+        Ok(())
     }
 }

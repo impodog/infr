@@ -5,6 +5,6 @@ edition = "2024"
 
 [workspace]
 resolver = "3"
-members = ["infr_layout","infr_solver"]
+members = ["infr_layout", "infr_macros","infr_solver"]
 
 [dependencies]

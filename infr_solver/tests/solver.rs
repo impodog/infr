@@ -87,7 +87,7 @@ fn test_layout_overlap() {
     map.parse();
     map.build_solver();
     let relevant_groups = map.get_relevant_groups();
-    map.prove_groups(relevant_groups);
+    map.prove_groups(&relevant_groups);
     assert_eq!(map.check_overlap(), Err(Coord::new(0, 0)));
     map.revert();
 }
