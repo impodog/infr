@@ -5,4 +5,4 @@
 mod layout;
 pub use layout::*;
 
-pub mod script;
+pub mod scripts;

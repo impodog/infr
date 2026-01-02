@@ -1,6 +1,5 @@
 //! Infr solver object representation.
 
-use std::backtrace::Backtrace;
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 

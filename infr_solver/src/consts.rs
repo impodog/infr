@@ -16,3 +16,6 @@ pub const AXIOM_PREFIX: &str = "Axiom";
 
 /// The variable in the solver, testing whether the object is solid (i.e. cannot overlap other solid objects).
 pub const VAR_SOLID: &str = "Solid";
+
+/// Placeholder for scripts sending a new object without an id.
+pub const UNUSED_ID: u32 = 0xfeedd095;

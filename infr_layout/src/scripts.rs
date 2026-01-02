@@ -21,7 +21,6 @@ type ArcMap<K, V> = Arc<Mutex<HashMap<K, V>>>;
 #[derive(Default, Debug)]
 /// Stores the imported scripts and manages hot reloading.
 pub struct Scripts {
-    lua: Lua,
     scripts: HashMap<String, ScriptContent>,
     pub sprites: ArcMap<SpriteId, Sprite>,
     pub sprite_sheets: ArcMap<SpriteSheetId, SpriteSheet>,
@@ -177,6 +176,16 @@ pub struct Feature {
 #[derive(Debug, Id)]
 pub struct FeatureId(u32);
 
+impl Feature {
+    /// Runs internal lua function if it is present, and return the array of movements returned by the script.
+    pub fn on_input(
+        signal: &LuaValue,
+        layout: &LuaValue,
+    ) -> LuaResult<Option<Vec<crate::Movement>>> {
+        todo!()
+    }
+}
+
 /// Defined by the script, creates an instance class with sprite info.
 #[derive(FromLua, Debug, Clone)]
 pub struct Instance {
@@ -187,3 +196,73 @@ pub struct Instance {
 }
 #[derive(Debug, Id)]
 pub struct InstanceId(u32);
+
+// -- Implement relevant lua conversions.
+impl IntoLua for crate::Manner {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let table = lua.create_table()?;
+        match self {
+            Self::Swipe(direction) => {
+                table.set("type", "Swipe")?;
+                table.set("direction", direction)?;
+            }
+            Self::Remove => {
+                table.set("type", "Remove")?;
+            }
+            Self::Teleport => {
+                table.set("type", "Teleport")?;
+            }
+            Self::Add(object_desc) => {
+                table.set("type", "Add")?;
+                table.set("object", object_desc)?;
+            }
+        }
+        Ok(LuaValue::Table(table))
+    }
+}
+impl FromLua for crate::Manner {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::String(kind) => {
+                let kind = kind.to_str();
+                match kind.as_ref().map(LuaBorrowedStr::as_ref) {
+                    Ok("Remove") => Ok(Self::Remove),
+                    Ok("Teleport") => Ok(Self::Teleport),
+                    _ => Err(LuaError::FromLuaConversionError {
+                        from: "string",
+                        to: "Manner".to_owned(),
+                        message: Some(
+                            "For manner shorthand forms, only Remove and Teleport are allowed"
+                                .to_owned(),
+                        ),
+                    }),
+                }
+            }
+            LuaValue::Table(table) => {
+                let kind = table.get::<String>("kind")?;
+                match kind.as_str() {
+                    "Swipe" => {
+                        let direction = table.get::<infr_solver::Direction>("direction")?;
+                        Ok(Self::Swipe(direction))
+                    }
+                    "Remove" => Ok(Self::Remove),
+                    "Teleport" => Ok(Self::Teleport),
+                    "Add" => {
+                        let object_desc = table.get::<infr_solver::ObjectDesc>("object")?;
+                        Ok(Self::Add(object_desc))
+                    }
+                    _ => Err(LuaError::FromLuaConversionError {
+                        from: "string",
+                        to: "Manner".to_owned(),
+                        message: Some(format!("Invalid kind {kind} for Manner")),
+                    }),
+                }
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: "value",
+                to: "Manner".to_owned(),
+                message: Some("Invalid value type for Manner".to_owned()),
+            }),
+        }
+    }
+}

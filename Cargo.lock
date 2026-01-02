@@ -229,6 +229,8 @@ dependencies = [
 name = "infr_solver"
 version = "0.1.0"
 dependencies = [
+ "log",
+ "mlua",
  "z3",
 ]
 

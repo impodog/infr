@@ -1,4 +1,4 @@
-use crate::script::*;
+use crate::scripts::*;
 use mlua::prelude::*;
 
 use std::{
@@ -17,14 +17,16 @@ pub enum Manner {
     Teleport,
     /// Removes the object. This ignores the dest of the movement.
     Remove,
+    /// Adds an object to the dest.
+    Add(ObjectDesc),
 }
 
 /// Stores movement destination and the manner of movement.
 #[derive(Debug, Clone)]
 pub struct Movement {
     pub manner: Manner,
-    /// The id of the object that sends the movement.
-    pub sender: u32,
+    /// The id of the object that executes the movement.
+    pub object: u32,
     pub dest: Coord,
 }
 
@@ -91,16 +93,17 @@ impl Layout {
 
     /// Converts current map status to a lua value.
     fn convert_to_lua(&self, lua: &Lua) -> Result<LuaValue, InfrError> {
-        let mut objects = BTreeMap::<Coord, Vec<Vec<String>>>::new();
-        for (object, groups) in self.map.object_and_groups() {
-            objects
-                .entry(object.coord)
-                .or_default()
-                .push(groups.clone());
+        let mut objects = BTreeMap::<Coord, Vec<ObjectDesc>>::new();
+        for (index, object) in self.map.objects.iter().enumerate() {
+            objects.entry(object.coord).or_default().push(
+                self.map
+                    .get_object_desc(index)
+                    .expect("There should be object description at an existing object index."),
+            );
         }
         let table = lua.create_table()?;
-        for (coord, groups) in objects.into_iter() {
-            table.set(coord.to_list(), groups)?;
+        for (coord, objects) in objects.into_iter() {
+            table.set(coord.to_list(), objects)?;
         }
         Ok(LuaValue::Table(table))
     }
