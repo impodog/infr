@@ -2,14 +2,14 @@ use crate::scripts::*;
 use mlua::prelude::*;
 
 use std::{
-    collections::{BTreeMap, BTreeSet},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::{Arc, RwLock},
 };
 
 use infr_solver::*;
 
 /// Describes the manner of movement.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Manner {
     /// Swipes towards that position and may push objects.
     Swipe(Direction),
@@ -22,12 +22,27 @@ pub enum Manner {
 }
 
 /// Stores movement destination and the manner of movement.
-#[derive(Debug, Clone)]
+/// Each object on each step can only have one of movement (excluding equal ones).
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Movement {
     pub manner: Manner,
     /// The id of the object that executes the movement.
     pub object: u32,
+    /// The object movement that must be true for this movement to be performed.
+    pub depends: u32,
     pub dest: Coord,
+}
+impl PartialOrd for Movement {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl Ord for Movement {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.object
+            .cmp(&other.object)
+            .then_with(|| self.dest.cmp(&other.dest))
+    }
 }
 
 /// A signal from player input. Lua functions can respond to this accordingly.
@@ -43,6 +58,8 @@ pub enum InfrError {
     Overlap(Coord),
     /// The external script returns an unexpected error.
     Script(mlua::Error),
+    /// One object moves in different ways.
+    DifferentMovements(Vec<Movement>),
 }
 impl From<infr_solver::Contradiction> for InfrError {
     fn from(value: infr_solver::Contradiction) -> Self {
@@ -63,10 +80,14 @@ impl From<mlua::Error> for InfrError {
 pub type ArcMap = Arc<RwLock<Map>>;
 
 /// Represents the game layout and parses movements.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Layout {
     pub map: Map,
     move_queue: Vec<Movement>,
+    /// The list of objects listening to the key object's movements.
+    /// Only listened movements are sent to the listeners.
+    listen: HashMap<u32, Vec<u32>>,
+    to_index: HashMap<u32, usize>,
 }
 
 impl Layout {
@@ -75,6 +96,8 @@ impl Layout {
         Self {
             map: Map::new(),
             move_queue: Default::default(),
+            listen: Default::default(),
+            to_index: Default::default(),
         }
     }
 
@@ -108,37 +131,124 @@ impl Layout {
         Ok(LuaValue::Table(table))
     }
 
-    /// Initializes the movements with a signal. This will also clear any previous record of movement or errors.
+    pub fn perform_listen(
+        &self,
+        listener: usize,
+        layout: &LuaValue,
+        movement: &LuaValue,
+        lua: &Lua,
+        scripts: &Scripts,
+        new_movements: &mut Vec<Movement>,
+    ) -> Result<(), InfrError> {
+        let groups = self
+            .map
+            .groups()
+            .get(listener)
+            .expect("Listener should be valid");
+        let coord = self.map.objects[listener].coord;
+        for group in groups.iter() {
+            if let Some(id) = scripts.feature_names.lock().unwrap().get(group).copied() {
+                let features = scripts.features.lock().unwrap();
+                let feature = features
+                    .get(&id)
+                    .expect("Feature name should correspond to a feature implementation");
+                if let Some(movements) = feature.respond(layout, movement, coord)? {
+                    new_movements.extend(movements.into_iter());
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Step the movements with a external signal. This will also clear any previous record of movement or errors.
+    /// Returns if any valid move was performed.
     ///
-    /// You should call `Self::step` repeatedly to parse the subsequent movements.
+    /// You should call this repeatedly to parse the subsequent movements.
     /// You must call `Self::clear` after all movements are parsed.
-    pub fn init(&mut self, input: Signal, lua: &Lua, scripts: &Scripts) -> Result<(), InfrError> {
-        let relevant_groups = self.init_map()?;
-        let table = self.convert_to_lua(lua)?;
+    pub fn step(
+        &mut self,
+        signal: Signal,
+        lua: &Lua,
+        scripts: &Scripts,
+    ) -> Result<bool, InfrError> {
+        let _relevant_groups = self.init_map()?;
+        let layout = self.convert_to_lua(lua)?;
+        let signal = signal.into_lua(lua)?;
+        // Creates back-map from id to map index.
+        self.to_index = self
+            .map
+            .objects
+            .iter()
+            .enumerate()
+            .map(|(index, object)| (object.id(), index))
+            .collect();
+        let mut any_performed = false;
+
+        // Add initializing moves(respond to signal).
         for (object, groups) in self.map.object_and_groups() {
             for group in groups.iter() {
                 if let Some(id) = scripts.feature_names.lock().unwrap().get(group).copied() {
                     let features = scripts.features.lock().unwrap();
-                    match features.get(&id) {
-                        Some(feature) => {
-                            if let Some(ref on_input) = feature.on_input {
-                                todo!()
-                            }
-                        }
-                        None => {
-                            log::error!(
-                                concat!(
-                                    "Feature {} is registered without feature implementation. ",
-                                    "This shouldn't be possible with lua scripts."
-                                ),
-                                group
-                            );
+                    let feature = features
+                        .get(&id)
+                        .expect("Feature name should correspond to a feature implementation");
+                    if let Some(movements) = feature.on_input(&layout, &signal, object.coord)? {
+                        self.move_queue.extend(movements.into_iter());
+                    }
+                    if let Some(listens) = feature.get_listen(&layout, object.coord)? {
+                        for target in listens.into_iter() {
+                            self.listen.entry(target).or_default().push(object.id());
                         }
                     }
                 }
             }
         }
+
+        // Add subsequent moves generated by listeners.
+        let mut index = 0;
+        while index < self.move_queue.len() {
+            let mut new_movements = Vec::<Movement>::new();
+            let movement = &self.move_queue[index];
+            let movement_value = movement.clone().into_lua(lua)?;
+            if let Some(listeners) = self.listen.get(&movement.object) {
+                for listener in listeners.iter() {
+                    if let Some(listener) = self.to_index.get(listener) {
+                        self.perform_listen(
+                            *listener,
+                            &layout,
+                            &movement_value,
+                            lua,
+                            scripts,
+                            &mut new_movements,
+                        )?;
+                    } else {
+                        log::warn!("Non-existent listener provided by th script: {listener}");
+                    }
+                }
+            }
+            self.move_queue.extend(new_movements.into_iter());
+            index += 1;
+        }
+
+        // Test if there is any objects that move two different ways.
+        self.move_queue.sort();
+        if !self.move_queue.is_empty() {
+            for index in 0..self.move_queue.len() - 1 {
+                let current = &self.move_queue[index];
+                let next = &self.move_queue[index + 1];
+                if current.object == next.object && current != next {
+                    return Err(InfrError::DifferentMovements(vec![
+                        current.clone(),
+                        next.clone(),
+                    ]));
+                }
+            }
+        }
+
+        // Test if any move is invalid
+        todo!();
+
         self.map.revert();
-        Ok(())
+        Ok(any_performed)
     }
 }

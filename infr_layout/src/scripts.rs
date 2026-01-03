@@ -56,6 +56,8 @@ impl Scripts {
     pub fn add_global_functions(&self, lua: &Lua) -> LuaResult<()> {
         let globals = lua.globals();
 
+        globals.set("UNUSED_ID", infr_solver::consts::UNUSED_ID)?;
+
         {
             let sprites = self.sprites.clone();
             globals.set(
@@ -170,8 +172,12 @@ pub struct Feature {
     pub name: String,
     /// The sprite sheet for the word of this feature.
     pub sprite_word: SpriteSheetId,
-    /// Function to execute when inputted with a direction.
+    /// Function to execute when inputted with a signal.
     pub on_input: Option<LuaFunction>,
+    /// Function that returns all objects it should listen to.
+    pub get_listen: Option<LuaFunction>,
+    /// Function to execute when the listened object performs a movement.
+    pub respond: Option<LuaFunction>,
 }
 #[derive(Debug, Id)]
 pub struct FeatureId(u32);
@@ -179,10 +185,45 @@ pub struct FeatureId(u32);
 impl Feature {
     /// Runs internal lua function if it is present, and return the array of movements returned by the script.
     pub fn on_input(
-        signal: &LuaValue,
+        &self,
         layout: &LuaValue,
+        signal: &LuaValue,
+        coord: infr_solver::Coord,
     ) -> LuaResult<Option<Vec<crate::Movement>>> {
-        todo!()
+        if let Some(on_input) = self.on_input.as_ref() {
+            let result = on_input.call::<Vec<crate::Movement>>((signal, layout, coord))?;
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Runs internal lua function if it is present, and return the array of objects it should listen to.
+    pub fn get_listen(
+        &self,
+        layout: &LuaValue,
+        coord: infr_solver::Coord,
+    ) -> LuaResult<Option<Vec<u32>>> {
+        if let Some(get_listen) = self.get_listen.as_ref() {
+            let result = get_listen.call::<Vec<u32>>((layout, coord))?;
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn respond(
+        &self,
+        layout: &LuaValue,
+        movement: &LuaValue,
+        coord: infr_solver::Coord,
+    ) -> LuaResult<Option<Vec<crate::Movement>>> {
+        if let Some(respond) = self.respond.as_ref() {
+            let result = respond.call::<Vec<crate::Movement>>((layout, movement, coord))?;
+            Ok(Some(result))
+        } else {
+            Ok(None)
+        }
     }
 }
 
@@ -262,6 +303,63 @@ impl FromLua for crate::Manner {
                 from: "value",
                 to: "Manner".to_owned(),
                 message: Some("Invalid value type for Manner".to_owned()),
+            }),
+        }
+    }
+}
+
+impl IntoLua for crate::Movement {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let table = lua.create_table()?;
+        table.set("manner", self.manner)?;
+        table.set("object", self.object)?;
+        table.set("dest", self.dest)?;
+        table.set("depends", self.depends)?;
+        Ok(LuaValue::Table(table))
+    }
+}
+impl FromLua for crate::Movement {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(table) => {
+                let manner = table.get::<crate::Manner>("manner")?;
+                let object = table.get::<u32>("object")?;
+                let dest = table.get::<infr_solver::Coord>("dest")?;
+                let depends = table.get::<u32>("depends")?;
+                Ok(Self {
+                    manner,
+                    object,
+                    dest,
+                    depends,
+                })
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: "value",
+                to: "Movement".to_owned(),
+                message: Some("Invalid value type for Movement".to_owned()),
+            }),
+        }
+    }
+}
+
+impl IntoLua for crate::Signal {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let table = lua.create_table()?;
+        table.set("direction", self.direction)?;
+        Ok(LuaValue::Table(table))
+    }
+}
+impl FromLua for crate::Signal {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(table) => {
+                let direction = table.get::<Option<infr_solver::Direction>>("direction")?;
+                Ok(Self { direction })
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: "value",
+                to: "Signal".to_owned(),
+                message: Some("Invalid value type for Signal".to_owned()),
             }),
         }
     }

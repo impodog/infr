@@ -100,7 +100,7 @@ impl FromLua for ObjectKind {
 }
 
 /// A minimal object description produced by (or given to) scripts.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ObjectDesc {
     /// This is unused when the scripts sends a new object.
     pub id: u32,
