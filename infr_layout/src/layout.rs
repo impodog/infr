@@ -47,7 +47,10 @@ impl Ord for Movement {
 
 /// A signal from player input. Lua functions can respond to this accordingly.
 pub struct Signal {
+    /// The input direction of the player at the start of all movements.
     pub direction: Option<Direction>,
+    /// The round number of the signal. For round > 0, it is called after the direct movement.
+    pub round: u32,
 }
 
 /// Errors that occur when the layout is parsing movements.
@@ -162,6 +165,8 @@ impl Layout {
 
     /// Step the movements with a external signal. This will also clear any previous record of movement or errors.
     /// Returns if any valid move was performed.
+    ///
+    /// If the signal is
     ///
     /// You should call this repeatedly to parse the subsequent movements.
     /// You must call `Self::clear` after all movements are parsed.

@@ -346,6 +346,7 @@ impl IntoLua for crate::Signal {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         let table = lua.create_table()?;
         table.set("direction", self.direction)?;
+        table.set("round", self.round)?;
         Ok(LuaValue::Table(table))
     }
 }
@@ -353,8 +354,9 @@ impl FromLua for crate::Signal {
     fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         match value {
             LuaValue::Table(table) => {
-                let direction = table.get::<Option<infr_solver::Direction>>("direction")?;
-                Ok(Self { direction })
+                let direction = table.get("direction")?;
+                let round = table.get("round")?;
+                Ok(Self { direction, round })
             }
             _ => Err(LuaError::FromLuaConversionError {
                 from: "value",
