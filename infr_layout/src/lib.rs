@@ -5,6 +5,9 @@
 mod layout;
 pub use layout::*;
 
+mod error;
+pub use error::*;
+
 pub mod scripts;
 
 pub mod graph;
