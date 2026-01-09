@@ -15,12 +15,8 @@ async fn main() {
     let app = Router::new()
         .route("/test", get(test_server))
         .nest("/scripts", scripts::route_scripts())
-        .with_state(AppState {
-            scripts: Arc::new(RwLock::new(infr_layout::scripts::Scripts::new())),
-            lua: mlua::Lua::new_with(mlua::StdLib::ALL_SAFE, Default::default())
-                .expect("Unable to create lua instance"),
-            sessions: Default::default(),
-        });
+        .nest("/session", session::route_session())
+        .with_state(AppState::new().expect("App initialization failed"));
 
     let listener = tokio::net::TcpListener::bind(config::STARTUP_CONFIG.address)
         .await

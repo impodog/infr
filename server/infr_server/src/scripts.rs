@@ -10,34 +10,33 @@ pub(crate) fn route_scripts() -> Router<AppState> {
 }
 
 /// Calls to add a script with a name handle, if not already.
-async fn add_script(
-    state: State<AppState>,
-    req: Json<transfer::AddScriptRequest>,
-) -> Result<(), Json<transfer::ServerError>> {
+async fn add_script(state: State<AppState>, req: Json<transfer::AddScriptRequest>) -> TextResponse {
     let transfer::AddScriptRequest { name, path } = req.0;
     log::info!("Request to add script: {name} at {path:?}");
     if !path.exists() {
-        return Err(transfer::ServerError::ServerSide(format!(
-            "Script at path {path:?} not found"
-        ))
-        .into());
+        return Err(transfer::ServerError::BadRequest(format!("File not found: {path:?}")).into());
     }
-    state.0.scripts.write().await.add(name, PathBuf::from(path));
+    state
+        .0
+        .scripts
+        .write()
+        .unwrap()
+        .add(name, PathBuf::from(path));
     reload_script(state).await?;
-    Ok(())
+    Ok("Script added successfully")
 }
 
 /// Forces to reload all scripts that were changed.
-async fn reload_script(state: State<AppState>) -> Result<(), Json<transfer::ServerError>> {
+async fn reload_script(state: State<AppState>) -> TextResponse {
     log::info!("Reloading all scripts...");
     state
         .0
         .scripts
         .write()
-        .await
+        .unwrap()
         .reload(&state.lua)
         .map_err(|err| transfer::ServerError::ServerSide(err.to_string()))?;
-    Ok(())
+    Ok("Scripts reloaded without error")
 }
 
 /// Runs a lua command.

@@ -7,6 +7,9 @@
 #[cfg(feature = "server")]
 mod conv;
 
+mod level;
+pub use level::*;
+
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
@@ -58,6 +61,7 @@ pub enum ServerError {
     Overlap(Coord),
     /// A server side error. Clients may directly report the error message.
     ServerSide(String),
+    BadRequest(String),
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -66,4 +70,18 @@ pub struct AddScriptRequest {
     pub name: String,
     /// The path to the script.
     pub path: PathBuf,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LoadSessionRequest {
+    /// The path to the configuration file.
+    pub path: PathBuf,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LoadSessionResponse {
+    /// The id of the newly load session.
+    pub id: SessionId,
+    /// The requirements that the level config demands.
+    /// Clients must decide which files to load and send them via /scripts/add, before performing any actions on the session.
+    pub requirements: Vec<String>,
 }

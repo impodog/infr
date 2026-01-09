@@ -5,8 +5,9 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
+axum = { version = "0.8.8", optional = true }
 infr_solver = { path = "../infr_solver", optional = true }
 infr_layout = { path = "../infr_layout", optional = true }
 
 [features]
-server = ["infr_solver", "infr_layout"]
+server = ["infr_solver", "infr_layout", "axum"]

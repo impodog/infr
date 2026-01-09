@@ -61,12 +61,70 @@ impl crate::Map {
                     .expect("\"from_map\" should be called after proving groups")
                     .clone(),
                 nature: match &object.kind {
-                    ObjectKind::Instance => format!("{}-I", object.group),
-                    ObjectKind::Structure => format!("{}-S", object.group),
-                    _ => object.group.clone(),
+                    ObjectKind::Instance => format!("${}", object.group),
+                    ObjectKind::Structure => format!("@{}", object.group),
+                    ObjectKind::Symbol => format!("%{}", object.group),
+                    ObjectKind::Operator => format!("={}", object.group),
                 },
             });
         }
         Self(result)
+    }
+}
+
+impl From<String> for crate::ServerError {
+    fn from(value: String) -> Self {
+        crate::ServerError::ServerSide(value)
+    }
+}
+
+/// Utility conversion, allowing using ? for quick error propagation.
+impl From<crate::ServerError> for axum::response::ErrorResponse {
+    fn from(value: crate::ServerError) -> Self {
+        use axum::http::StatusCode;
+        use axum::response::IntoResponse;
+        let status_code = match value {
+            crate::ServerError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            crate::ServerError::ServerSide(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            _ => StatusCode::PARTIAL_CONTENT,
+        };
+        let response = (status_code, axum::Json(value)).into_response();
+        axum::response::ErrorResponse::from(response)
+    }
+}
+
+impl TryFrom<crate::LevelObject> for Object {
+    type Error = crate::ServerError;
+
+    fn try_from(value: crate::LevelObject) -> Result<Self, Self::Error> {
+        let mut object = match value.group.chars().next() {
+            Some('$') => Object::new(
+                value.coord.into(),
+                ObjectKind::Instance,
+                value.group[1..].to_owned(),
+            ),
+            Some('@') => Object::new(
+                value.coord.into(),
+                ObjectKind::Structure,
+                value.group[1..].to_owned(),
+            ),
+            Some('%') => Object::new(
+                value.coord.into(),
+                ObjectKind::Symbol,
+                value.group[1..].to_owned(),
+            ),
+            Some('=') => Object::new(
+                value.coord.into(),
+                ObjectKind::Operator,
+                value.group[1..].to_owned(),
+            ),
+            onset => {
+                return Err(crate::ServerError::BadRequest(format!(
+                    "Unidentified object onset: {onset:?}"
+                )));
+            }
+        };
+        object.direction = value.direction.into();
+        Ok(object)
     }
 }
