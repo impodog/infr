@@ -92,6 +92,22 @@ impl<T> Graph<T> {
         unsafe { self.nodes[node].data.as_mut() }
     }
 
+    /// Returns the degree of a node.
+    ///
+    /// Panics if `node` is not a valid node index.
+    pub fn get_deg(&self, node: usize) -> usize {
+        assert!(node < self.nodes.len(), "Invalid node index");
+        self.nodes[node].deg
+    }
+
+    /// Returns a reference to the next nodes of a node.
+    ///
+    /// Panics if `node` is not a valid node index.
+    pub fn get_next(&self, node: usize) -> &[usize] {
+        assert!(node < self.nodes.len(), "Invalid node index");
+        &self.nodes[node].next
+    }
+
     /// Returns the number of nodes in the graph.
     pub fn len(&self) -> usize {
         self.nodes.len()

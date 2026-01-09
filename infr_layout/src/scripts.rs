@@ -314,7 +314,8 @@ impl IntoLua for crate::Movement {
         table.set("manner", self.manner)?;
         table.set("object", self.object)?;
         table.set("dest", self.dest)?;
-        table.set("depends", self.depends)?;
+        table.set("required_by", self.required_by)?;
+        table.set("forbid", self.forbid)?;
         Ok(LuaValue::Table(table))
     }
 }
@@ -325,12 +326,14 @@ impl FromLua for crate::Movement {
                 let manner = table.get::<crate::Manner>("manner")?;
                 let object = table.get::<u32>("object")?;
                 let dest = table.get::<infr_solver::Coord>("dest")?;
-                let depends = table.get::<u32>("depends")?;
+                let required_by = table.get::<u32>("required_by")?;
+                let forbid = table.get::<bool>("forbid")?;
                 Ok(Self {
                     manner,
                     object,
                     dest,
-                    depends,
+                    required_by,
+                    forbid,
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {

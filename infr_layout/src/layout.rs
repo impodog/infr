@@ -2,7 +2,7 @@ use crate::scripts::*;
 use mlua::prelude::*;
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     sync::{Arc, RwLock},
 };
 
@@ -28,9 +28,11 @@ pub struct Movement {
     pub manner: Manner,
     /// The id of the object that executes the movement.
     pub object: u32,
-    /// The object movement that must be true for this movement to be performed.
-    pub depends: u32,
+    /// This movement must be performed for this movement to work.
+    pub required_by: u32,
     pub dest: Coord,
+    /// This movement can never be performed if set to true.
+    pub forbid: bool,
 }
 impl PartialOrd for Movement {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -63,6 +65,10 @@ pub enum InfrError {
     Script(mlua::Error),
     /// One object moves in different ways.
     DifferentMovements(Vec<Movement>),
+    /// Ill-formed movement.
+    IllFormed(Movement),
+    /// No such object id.
+    NoSuchId(u32),
 }
 impl From<infr_solver::Contradiction> for InfrError {
     fn from(value: infr_solver::Contradiction) -> Self {
@@ -91,6 +97,8 @@ pub struct Layout {
     /// Only listened movements are sent to the listeners.
     listen: HashMap<u32, Vec<u32>>,
     to_index: HashMap<u32, usize>,
+    /// The queue for all remove movements. This will be collected at the end of `Self::step`.
+    remove_queue: Vec<usize>,
 }
 
 impl Layout {
@@ -101,6 +109,7 @@ impl Layout {
             move_queue: Default::default(),
             listen: Default::default(),
             to_index: Default::default(),
+            remove_queue: Default::default(),
         }
     }
 
@@ -114,7 +123,65 @@ impl Layout {
         self.map.prove_groups(&relevant_groups);
         self.map.check_contradiction()?;
         self.map.check_overlap()?;
+        self.remove_queue.clear();
         Ok(relevant_groups)
+    }
+
+    /// Performs the movement that actually changes the map.
+    ///
+    /// If the movement is ill-formed, returns an error.
+    fn perform_movement(&mut self, movement: Movement) -> Result<(), InfrError> {
+        match &movement.manner {
+            Manner::Add(object_desc) => {
+                if object_desc.group.len() == 1 {
+                    let mut object = Object::new(
+                        movement.dest,
+                        object_desc.kind,
+                        object_desc.group.iter().next().cloned().unwrap(),
+                    );
+                    object.direction = object_desc.direction;
+                    self.map.push(object);
+                    Ok(())
+                } else {
+                    Err(InfrError::IllFormed(movement))
+                }
+            }
+            Manner::Swipe(direction) => {
+                let index = *self
+                    .to_index
+                    .get(&movement.object)
+                    .ok_or_else(|| InfrError::NoSuchId(movement.object))?;
+                let object = self
+                    .map
+                    .objects
+                    .get_mut(index)
+                    .expect("Stored index should be valid");
+                object.coord = movement.dest;
+                object.direction = Some(*direction);
+                Ok(())
+            }
+            Manner::Teleport => {
+                let index = *self
+                    .to_index
+                    .get(&movement.object)
+                    .ok_or_else(|| InfrError::NoSuchId(movement.object))?;
+                let object = self
+                    .map
+                    .objects
+                    .get_mut(index)
+                    .expect("Stored index should be valid");
+                object.coord = movement.dest;
+                Ok(())
+            }
+            Manner::Remove => {
+                let index = *self
+                    .to_index
+                    .get(&movement.object)
+                    .ok_or_else(|| InfrError::NoSuchId(movement.object))?;
+                self.remove_queue.push(index);
+                Ok(())
+            }
+        }
     }
 
     /// Converts current map status to a lua value.
@@ -139,7 +206,7 @@ impl Layout {
         listener: usize,
         layout: &LuaValue,
         movement: &LuaValue,
-        lua: &Lua,
+        _lua: &Lua,
         scripts: &Scripts,
         new_movements: &mut Vec<Movement>,
     ) -> Result<(), InfrError> {
@@ -187,7 +254,6 @@ impl Layout {
             .enumerate()
             .map(|(index, object)| (object.id(), index))
             .collect();
-        let mut any_performed = false;
 
         // Add initializing moves(respond to signal).
         for (object, groups) in self.map.object_and_groups() {
@@ -235,23 +301,109 @@ impl Layout {
             index += 1;
         }
 
-        // Test if there is any objects that move two different ways.
+        // Test if there is any objects that move two different ways,
+        // and remove duplicate moves.
         self.move_queue.sort();
+        let mut new_move_queue = Vec::<Movement>::new();
         if !self.move_queue.is_empty() {
-            for index in 0..self.move_queue.len() - 1 {
-                let current = &self.move_queue[index];
-                let next = &self.move_queue[index + 1];
-                if current.object == next.object && current != next {
-                    return Err(InfrError::DifferentMovements(vec![
-                        current.clone(),
-                        next.clone(),
-                    ]));
+            for current in self.move_queue.drain(..) {
+                if let Some(previous) = new_move_queue.first()
+                    && current.object == previous.object
+                {
+                    if current != *previous {
+                        return Err(InfrError::DifferentMovements(vec![
+                            current.clone(),
+                            previous.clone(),
+                        ]));
+                    }
+                } else {
+                    new_move_queue.push(current);
+                }
+            }
+        }
+        self.move_queue = new_move_queue;
+
+        // Sort the moves by their dependency relations.
+        let graph = {
+            let mut graph = crate::graph::Graph::<u32>::new();
+            let mut map_object_node = HashMap::<u32, usize>::new();
+            for movement in self.move_queue.iter() {
+                let object = *map_object_node
+                    .entry(movement.object)
+                    .or_insert_with(|| graph.add(movement.object));
+                let subsequent = *map_object_node
+                    .entry(movement.required_by)
+                    .or_insert_with(|| graph.add(movement.required_by));
+                graph.connect(object, subsequent);
+            }
+            graph.scc()
+        };
+
+        let mut map_object_movement = self
+            .move_queue
+            .drain(..)
+            .map(|movement| (movement.object, movement))
+            .collect::<HashMap<_, _>>();
+
+        // Perform the movements with dependency restrictions by topo sort.
+        let mut any_performed = false;
+        let mut queue = VecDeque::new();
+        let mut deg = vec![0; graph.len()];
+        for u in 0..graph.len() {
+            deg.push(graph.get_deg(u));
+            if graph.get_deg(u) == 0 {
+                queue.push_back(u);
+            }
+        }
+        while let Some(u) = queue.pop_front() {
+            let mut ok = true;
+            for object in graph.get(u).iter() {
+                let movement = map_object_movement
+                    .get(object)
+                    .expect("Movement should be in the map after inserting");
+                if movement.forbid {
+                    ok = false;
+                    break;
+                }
+            }
+            if ok {
+                any_performed = true;
+                for object in graph.get(u).iter() {
+                    let movement = map_object_movement
+                        .remove(object)
+                        .expect("Movement should be in the map and not removed");
+                    self.perform_movement(movement)?;
+                }
+                for v in graph.get_next(u).iter().copied() {
+                    deg[v] -= 1;
+                    if deg[v] == 0 {
+                        queue.push_back(v);
+                    }
                 }
             }
         }
 
-        // Test if any move is invalid
-        todo!();
+        // Use two pointers to remove objects required.
+        self.remove_queue.sort();
+        let mut new_objects = Vec::<Object>::new();
+        {
+            let mut iter = self.map.objects.drain(..).enumerate().fuse();
+            for index in self.remove_queue.drain(..) {
+                loop {
+                    if let Some((current_index, object)) = iter.next() {
+                        if current_index == index {
+                            break;
+                        } else {
+                            new_objects.push(object);
+                        }
+                    }
+                }
+            }
+            while let Some((_, object)) = iter.next() {
+                new_objects.push(object);
+            }
+        }
+        self.map.objects = new_objects;
 
         self.map.revert();
         Ok(any_performed)
