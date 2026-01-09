@@ -7,6 +7,8 @@
 #[cfg(feature = "server")]
 mod conv;
 
+use std::path::PathBuf;
+
 use serde::{Deserialize, Serialize};
 
 /// The direction which the object is facing. 1-Right 2-Up 3-Left 4-Right Others-No direction
@@ -21,6 +23,8 @@ pub struct Coord(pub i32, pub i32);
 pub type Id = u32;
 /// The identifier for axioms, used in error reporting.
 pub type AxiomId = u32;
+/// The identifier for sessions that stores game states.
+pub type SessionId = u32;
 
 /// Struct used for retrieving relevant information of an object.
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -54,4 +58,12 @@ pub enum ServerError {
     Overlap(Coord),
     /// A server side error. Clients may directly report the error message.
     ServerSide(String),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct AddScriptRequest {
+    /// The readable name of this script.
+    pub name: String,
+    /// The path to the script.
+    pub path: PathBuf,
 }

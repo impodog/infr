@@ -39,7 +39,7 @@ impl Scripts {
     pub fn add<'a, 'b>(&mut self, name: impl Into<Cow<'a, str>>, path: impl Into<Cow<'b, Path>>) {
         let name = name.into();
         let path = path.into();
-        if self.scripts.contains_key(name.as_ref()) {
+        if !self.scripts.contains_key(name.as_ref()) {
             self.scripts.insert(
                 name.into_owned(),
                 ScriptContent {
@@ -97,10 +97,11 @@ impl Scripts {
                     // Check if the content has changed.
                     let key = sha256::digest(&content);
                     if key != path.key {
+                        log::info!("Reloading module contents {}", name);
+                        lua.unload_module(name)?;
                         lua.preload_module(
                             name,
-                            lua.create_function(move |lua: &Lua, name: String| {
-                                log::info!("Reloading module {}", name);
+                            lua.create_function(move |lua: &Lua, _name: String| {
                                 lua.load(content.clone()).exec()
                             })?,
                         )?;
