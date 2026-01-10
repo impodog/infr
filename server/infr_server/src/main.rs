@@ -12,11 +12,13 @@ use prelude::*;
 async fn main() {
     tracing_subscriber::fmt::init();
 
+    let state = AppState::new().expect("App initialization failed");
+
     let app = Router::new()
         .route("/test", get(test_server))
         .nest("/scripts", scripts::route_scripts())
-        .nest("/session", session::route_session())
-        .with_state(AppState::new().expect("App initialization failed"));
+        .nest("/session", session::route_session(state.clone()))
+        .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(config::STARTUP_CONFIG.address)
         .await

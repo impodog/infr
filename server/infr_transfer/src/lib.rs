@@ -124,3 +124,20 @@ pub struct SendStepRequest {
 pub struct SendStepResponse {
     pub movements: Vec<Movement>,
 }
+
+pub type GetMapRequest = SessionId;
+
+pub type SnapshotId = u32;
+pub type TakeSnapshotRequest = SessionId;
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RemoveSnapshotRequest {
+    pub session_id: SessionId,
+    pub snapshot_id: SnapshotId,
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RevertSnapshotRequest {
+    pub session_id: SessionId,
+    pub snapshot_id: SnapshotId,
+}
+
+pub type RefreshSessionRequest = SessionId;

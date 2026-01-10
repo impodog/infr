@@ -15,6 +15,7 @@ pub struct LevelObject {
 pub struct Level {
     pub meta: LevelMetadata,
     pub objects: Vec<LevelObject>,
+    #[serde(default)]
     pub requirements: Vec<String>,
     // TODO: Add transition config
 }

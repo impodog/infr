@@ -1,0 +1,5 @@
+objects = []
+requirements = ["Push"]
+
+[meta]
+title = "Test Level"

@@ -6,12 +6,14 @@ use std::sync::LazyLock;
 pub struct StartupConfig {
     /// The address to run the server on.
     pub address: std::net::SocketAddr,
+    pub refresh_interval: u64,
 }
 
 impl Default for StartupConfig {
     fn default() -> Self {
         Self {
             address: std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), 4321),
+            refresh_interval: 30,
         }
     }
 }
