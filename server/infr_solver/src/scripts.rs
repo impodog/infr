@@ -42,15 +42,18 @@ impl FromLua for Direction {
 
 impl IntoLua for Coord {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        self.to_list().into_lua(lua)
+        let table = lua.create_table()?;
+        table.set("x", self.x)?;
+        table.set("y", self.y)?;
+        Ok(LuaValue::Table(table))
     }
 }
 impl FromLua for Coord {
     fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         match value {
             LuaValue::Table(table) => {
-                let x = table.get::<i32>(1)?;
-                let y = table.get::<i32>(2)?;
+                let x = table.get::<i32>("x")?;
+                let y = table.get::<i32>("y")?;
                 Ok(Self { x, y })
             }
             _ => Err(LuaError::FromLuaConversionError {

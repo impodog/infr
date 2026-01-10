@@ -202,7 +202,7 @@ impl Layout {
                 let feature = features
                     .get(&id)
                     .expect("Feature name should correspond to a feature implementation");
-                if let Some(movements) = feature.respond(layout, object, coord, movement)? {
+                if let Some(movements) = feature.respond(layout, movement, object, coord)? {
                     new_movements.extend(movements.into_iter());
                 }
             }
@@ -223,8 +223,18 @@ impl Layout {
         scripts: &Scripts,
     ) -> Result<Vec<Movement>, InfrError> {
         let _relevant_groups = self.init_map()?;
+
+        // Clean previously grabbed tables, if this is the start of a new input.
+        if signal.direction.is_some() {
+            let mut grabbed_tables = scripts.grabbed_tables.lock().unwrap();
+            for object in self.map.objects.iter() {
+                grabbed_tables.remove(&object.id());
+            }
+        }
+
         let layout = self.convert_to_lua(lua)?;
         let signal = signal.into_lua(lua)?;
+
         // Creates back-map from id to map index.
         self.to_index = self
             .map

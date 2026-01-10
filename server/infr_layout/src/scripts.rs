@@ -26,6 +26,8 @@ pub struct Scripts {
     /// Stores the map from feature name to its id.
     pub feature_names: ArcMap<String, FeatureId>,
     pub instances: ArcMap<InstanceId, Instance>,
+    /// Scripts may apply for a step-specific table that correlates with an object.
+    pub grabbed_tables: ArcMap<u32, LuaValue>,
 }
 
 impl Scripts {
@@ -85,6 +87,26 @@ impl Scripts {
                     let id = InstanceId::new();
                     instances.lock().unwrap().insert(id, instance);
                     Ok(id)
+                })?,
+            )?;
+        }
+
+        {
+            let grabbed_tables = self.grabbed_tables.clone();
+            globals.set(
+                "grab_table",
+                lua.create_function(move |lua: &Lua, object: u32| -> LuaResult<LuaValue> {
+                    let mut grabbed_tables = grabbed_tables.lock().unwrap();
+                    let value = match grabbed_tables.entry(object) {
+                        std::collections::hash_map::Entry::Occupied(occupied) => {
+                            occupied.get().clone()
+                        }
+                        std::collections::hash_map::Entry::Vacant(vacant) => {
+                            let table = lua.create_table()?;
+                            vacant.insert(LuaValue::Table(table)).clone()
+                        }
+                    };
+                    Ok(value)
                 })?,
             )?;
         }
@@ -186,12 +208,12 @@ impl Feature {
     pub fn respond(
         &self,
         layout: &LuaValue,
+        movement: &LuaValue,
         object: u32,
         coord: infr_solver::Coord,
-        movement: &LuaValue,
     ) -> LuaResult<Option<Vec<crate::Movement>>> {
         if let Some(respond) = self.respond.as_ref() {
-            let result = respond.call::<Vec<crate::Movement>>((layout, object, coord, movement))?;
+            let result = respond.call::<Vec<crate::Movement>>((layout, movement, object, coord))?;
             Ok(Some(result))
         } else {
             Ok(None)
