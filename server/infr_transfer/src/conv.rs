@@ -1,3 +1,9 @@
+//! This module is only compiled on the server side.
+//! It implements conversions between solver types and transfer types.
+//!
+//! All crate-names are invoked with a prefix, while solver types are default.
+
+use infr_layout::*;
 use infr_solver::*;
 
 impl From<Direction> for crate::Direction {
@@ -41,6 +47,35 @@ impl From<Coord> for crate::Coord {
 impl From<crate::Coord> for Coord {
     fn from(value: crate::Coord) -> Self {
         Coord::new(value.0, value.1)
+    }
+}
+
+impl From<Manner> for crate::MoveManner {
+    fn from(value: Manner) -> Self {
+        match value {
+            Manner::Swipe(direction) => Self::Swipe(direction.into()),
+            Manner::Add(_) => Self::Add,
+            Manner::Remove => Self::Remove,
+            Manner::Teleport => Self::Teleport,
+        }
+    }
+}
+impl From<Movement> for crate::Movement {
+    fn from(value: Movement) -> Self {
+        crate::Movement {
+            object: value.object,
+            manner: value.manner.into(),
+            dest: value.dest.into(),
+        }
+    }
+}
+impl From<&Movement> for crate::Movement {
+    fn from(value: &Movement) -> Self {
+        crate::Movement {
+            object: value.object,
+            manner: value.manner.clone().into(),
+            dest: value.dest.into(),
+        }
     }
 }
 

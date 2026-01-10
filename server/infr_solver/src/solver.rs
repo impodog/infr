@@ -258,7 +258,7 @@ impl Map {
 
     /// Asserts an axiom before parsing map-local rules.
     /// This axiom is then tracked and the id is returned if any inconsistency was found.
-    pub fn assert_axiom(&self, id: usize, expr: &z3::ast::Bool) {
+    pub fn assert_axiom(&self, id: u32, expr: &z3::ast::Bool) {
         self.solver.assert_and_track(
             expr,
             &z3::ast::Bool::new_const(format!("{}{}", consts::AXIOM_PREFIX, id)),

@@ -99,8 +99,10 @@ impl Layout {
 
     /// Performs the movement that actually changes the map.
     ///
+    /// Returns the object id that performs the movement. If the movement is Add, the fresh id is returned.
+    ///
     /// If the movement is ill-formed, returns an error.
-    fn perform_movement(&mut self, movement: Movement) -> Result<(), InfrError> {
+    fn perform_movement(&mut self, movement: Movement) -> Result<u32, InfrError> {
         match &movement.manner {
             Manner::Add(object_desc) => {
                 if object_desc.group.len() == 1 {
@@ -110,8 +112,9 @@ impl Layout {
                         object_desc.group.iter().next().cloned().unwrap(),
                     );
                     object.direction = object_desc.direction;
+                    let id = object.id();
                     self.map.push(object);
-                    Ok(())
+                    Ok(id)
                 } else {
                     Err(InfrError::IllFormed(movement))
                 }
@@ -128,7 +131,7 @@ impl Layout {
                     .expect("Stored index should be valid");
                 object.coord = movement.dest;
                 object.direction = Some(*direction);
-                Ok(())
+                Ok(object.id())
             }
             Manner::Teleport => {
                 let index = *self
@@ -141,7 +144,7 @@ impl Layout {
                     .get_mut(index)
                     .expect("Stored index should be valid");
                 object.coord = movement.dest;
-                Ok(())
+                Ok(object.id())
             }
             Manner::Remove => {
                 let index = *self
@@ -149,7 +152,7 @@ impl Layout {
                     .get(&movement.object)
                     .ok_or_else(|| InfrError::NoSuchId(movement.object))?;
                 self.remove_queue.push(index);
-                Ok(())
+                Ok(movement.object)
             }
         }
     }
@@ -201,18 +204,17 @@ impl Layout {
     }
 
     /// Step the movements with a external signal. This will also clear any previous record of movement or errors.
-    /// Returns if any valid move was performed.
+    /// Returns all the movements that were performed(may be empty), removing duplicate ones.
     ///
-    /// If the signal is
+    /// If the signal has a direction, the scripts directly responds to player input, otherwise they will do subsequent moves.
     ///
     /// You should call this repeatedly to parse the subsequent movements.
-    /// You must call `Self::clear` after all movements are parsed.
     pub fn step(
         &mut self,
         signal: Signal,
         lua: &Lua,
         scripts: &Scripts,
-    ) -> Result<bool, InfrError> {
+    ) -> Result<Vec<Movement>, InfrError> {
         let _relevant_groups = self.init_map()?;
         let layout = self.convert_to_lua(lua)?;
         let signal = signal.into_lua(lua)?;
@@ -281,10 +283,10 @@ impl Layout {
                     && current.object == previous.object
                 {
                     if current != *previous {
-                        return Err(InfrError::DifferentMovements(vec![
+                        return Err(InfrError::DifferentMovements(
                             current.clone(),
                             previous.clone(),
-                        ]));
+                        ));
                     }
                 } else {
                     new_move_queue.push(current);
@@ -316,7 +318,7 @@ impl Layout {
             .collect::<HashMap<_, _>>();
 
         // Perform the movements with dependency restrictions by topo sort.
-        let mut any_performed = false;
+        let mut performed_movements = Vec::new();
         let mut queue = VecDeque::new();
         let mut deg = vec![0; graph.len()];
         for u in 0..graph.len() {
@@ -337,12 +339,14 @@ impl Layout {
                 }
             }
             if ok {
-                any_performed = true;
                 for object in graph.get(u).iter() {
                     let movement = map_object_movement
                         .remove(object)
                         .expect("Movement should be in the map and not removed");
-                    self.perform_movement(movement)?;
+                    performed_movements.push(movement.clone());
+                    let object_id = self.perform_movement(movement)?;
+                    // Synchronizes object ids for Add movement.
+                    performed_movements.last_mut().unwrap().object = object_id;
                 }
                 for v in graph.get_next(u).iter().copied() {
                     deg[v] -= 1;
@@ -382,6 +386,6 @@ impl Layout {
         self.map.objects = new_objects;
 
         self.map.revert();
-        Ok(any_performed)
+        Ok(performed_movements)
     }
 }

@@ -13,8 +13,14 @@ pub struct LevelObject {
 /// The entry struct for parsing level configuration files.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Level {
-    pub title: String,
+    pub meta: LevelMetadata,
     pub objects: Vec<LevelObject>,
     pub requirements: Vec<String>,
     // TODO: Add transition config
+}
+
+/// The data that needs to be transferred throughout the program unmodified.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct LevelMetadata {
+    pub title: String,
 }

@@ -6,7 +6,7 @@ use crate::{Coord, Map, consts};
 #[derive(Default, Debug, Clone)]
 pub struct Contradiction {
     pub rules: Vec<usize>,
-    pub axioms: Vec<usize>,
+    pub axioms: Vec<u32>,
 }
 
 impl Map {
@@ -25,7 +25,7 @@ impl Map {
                 }
                 if name.starts_with(consts::AXIOM_PREFIX) {
                     let index = &name[consts::AXIOM_PREFIX.len()..];
-                    if let Ok(index) = index.parse::<usize>() {
+                    if let Ok(index) = index.parse::<u32>() {
                         contradiction.axioms.push(index);
                     }
                 }
