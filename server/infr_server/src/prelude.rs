@@ -49,7 +49,7 @@ impl AppState {
             Ok(session.clone())
         } else {
             Err(transfer::ServerError::BadRequest(format!(
-                "Unknown session id: {session_id}"
+                "Unidentified session id: {session_id}"
             )))
         }
     }

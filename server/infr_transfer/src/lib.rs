@@ -83,6 +83,8 @@ pub enum ServerError {
     /// A server side error. Clients may directly report the error message.
     ServerSide(String),
     BadRequest(String),
+    /// The client didn't step until empty movements is returned before giving a new input.
+    InputRefused,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -107,7 +109,19 @@ pub struct LoadSessionResponse {
     pub requirements: Vec<String>,
 }
 
+pub type ImportScriptsRequest = SessionId;
+
 pub type GetMetadataRequest = SessionId;
+
+pub type GetSessionStatusRequest = SessionId;
+/// Returned by the server, the internal status the session stores.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SessionStatus {
+    pub snapshot_count: usize,
+    pub input_count: u32,
+    pub round: u32,
+    pub can_input: bool,
+}
 
 /// Requests the server to step forward, with or without player input.
 #[derive(Serialize, Deserialize, Debug, Clone)]

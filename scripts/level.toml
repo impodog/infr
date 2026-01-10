@@ -1,5 +1,9 @@
-objects = []
-requirements = ["Push"]
+requirements = ["Basic"]
 
 [meta]
 title = "Test Level"
+
+[[objects]]
+direction = 1
+group = "$You"
+coord = [0, 0]

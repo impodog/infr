@@ -482,6 +482,11 @@ impl Map {
                     }
                 }
                 self.revert();
+                // Special case: The object's natural group is not in the relevant groups,
+                // but we still need to add it.
+                if !relevant_groups.contains(&object.group) {
+                    groups.last_mut().unwrap().push(object.group.clone());
+                }
             }
         }
         self.groups = groups;

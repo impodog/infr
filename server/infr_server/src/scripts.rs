@@ -22,7 +22,6 @@ async fn add_script(state: State<AppState>, req: Json<transfer::AddScriptRequest
         .write()
         .unwrap()
         .add(name, PathBuf::from(path));
-    reload_script(state).await?;
     Ok("Script added successfully")
 }
 

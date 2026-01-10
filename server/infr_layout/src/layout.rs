@@ -49,6 +49,7 @@ impl Ord for Movement {
 }
 
 /// A signal from player input. Lua functions can respond to this accordingly.
+#[derive(Debug, Clone, Copy)]
 pub struct Signal {
     /// The input direction of the player at the start of all movements.
     pub direction: Option<Direction>,
@@ -86,7 +87,7 @@ impl Layout {
     /// Does the chores: initializes map for logic check. Returns all relevant groups.
     ///
     /// You must call `self.map.revert` after this function.
-    fn init_map(&mut self) -> Result<BTreeSet<String>, InfrError> {
+    pub fn init_map(&mut self) -> Result<BTreeSet<String>, InfrError> {
         self.map.parse();
         self.map.build_solver();
         let relevant_groups = self.map.get_relevant_groups();
@@ -183,6 +184,12 @@ impl Layout {
         scripts: &Scripts,
         new_movements: &mut Vec<Movement>,
     ) -> Result<(), InfrError> {
+        let object = self
+            .map
+            .objects
+            .get(listener)
+            .expect("Listener should be valid")
+            .id();
         let groups = self
             .map
             .groups()
@@ -195,7 +202,7 @@ impl Layout {
                 let feature = features
                     .get(&id)
                     .expect("Feature name should correspond to a feature implementation");
-                if let Some(movements) = feature.respond(layout, movement, coord)? {
+                if let Some(movements) = feature.respond(layout, object, coord, movement)? {
                     new_movements.extend(movements.into_iter());
                 }
             }
@@ -235,10 +242,12 @@ impl Layout {
                     let feature = features
                         .get(&id)
                         .expect("Feature name should correspond to a feature implementation");
-                    if let Some(movements) = feature.on_input(&layout, &signal, object.coord)? {
+                    if let Some(movements) =
+                        feature.on_input(&layout, &signal, object.id(), object.coord)?
+                    {
                         self.move_queue.extend(movements.into_iter());
                     }
-                    if let Some(listens) = feature.get_listen(&layout, object.coord)? {
+                    if let Some(listens) = feature.get_listen(&layout, object.id(), object.coord)? {
                         for target in listens.into_iter() {
                             self.listen.entry(target).or_default().push(object.id());
                         }
@@ -303,10 +312,13 @@ impl Layout {
                 let object = *map_object_node
                     .entry(movement.object)
                     .or_insert_with(|| graph.add(movement.object));
-                let subsequent = *map_object_node
-                    .entry(movement.required_by)
-                    .or_insert_with(|| graph.add(movement.required_by));
-                graph.connect(object, subsequent);
+                // Filter unused id, but preserve the moved object(above)
+                if movement.required_by != consts::UNUSED_ID {
+                    let subsequent = *map_object_node
+                        .entry(movement.required_by)
+                        .or_insert_with(|| graph.add(movement.required_by));
+                    graph.connect(object, subsequent);
+                }
             }
             graph.scc()
         };
@@ -320,7 +332,8 @@ impl Layout {
         // Perform the movements with dependency restrictions by topo sort.
         let mut performed_movements = Vec::new();
         let mut queue = VecDeque::new();
-        let mut deg = vec![0; graph.len()];
+        let mut deg = Vec::new();
+        deg.reserve_exact(graph.len());
         for u in 0..graph.len() {
             deg.push(graph.get_deg(u));
             if graph.get_deg(u) == 0 {

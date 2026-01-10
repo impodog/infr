@@ -23,5 +23,10 @@ pub struct Level {
 /// The data that needs to be transferred throughout the program unmodified.
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LevelMetadata {
+    #[serde(default = "default_title")]
     pub title: String,
+}
+
+fn default_title() -> String {
+    "Untitled".into()
 }
