@@ -2,28 +2,40 @@
 
 use serde::{Deserialize, Serialize};
 
-use std::{path::PathBuf, sync::LazyLock};
+use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
 
 /// Config loaded at client startup, containing paths to other configs.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StartupConfig {
     /// The address the client should connect to.
-    pub address: std::net::SocketAddr,
+    pub address: String,
+    #[serde(skip)]
+    base_url: Option<reqwest::Url>,
     pub refresh_interval: u32,
+    pub sprite_config: PathBuf,
 }
-
+impl StartupConfig {
+    /// Returns a url with the given path under the configured host.
+    pub fn url(&self, path: &str) -> reqwest::Url {
+        let mut url = self.base_url.as_ref().expect("You should only use this struct by the static STARTUP_CONFIG, which would initialize base_url").clone();
+        url.set_path(path);
+        url
+    }
+}
 impl Default for StartupConfig {
     fn default() -> Self {
         Self {
-            address: std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), 4321),
+            address: "127.0.0.1:4321".into(),
+            base_url: None,
             refresh_interval: 20,
+            sprite_config: "assets/sprites/config.json".into(),
         }
     }
 }
 
 pub const STARTUP_CONFIG_PATH: &'static str = "client.toml";
-pub static STARTUP_CONFIG: LazyLock<StartupConfig> =
-    LazyLock::new(|| match std::fs::read_to_string(STARTUP_CONFIG_PATH) {
+pub static STARTUP_CONFIG: LazyLock<StartupConfig> = LazyLock::new(|| {
+    let mut config: StartupConfig = match std::fs::read_to_string(STARTUP_CONFIG_PATH) {
         Ok(content) => match toml::from_str(&content) {
             Ok(config) => {
                 log::info!("Client startup config loaded: {config:?}");
@@ -40,4 +52,80 @@ pub static STARTUP_CONFIG: LazyLock<StartupConfig> =
             );
             Default::default()
         }
-    });
+    };
+    config.base_url = Some(
+        reqwest::Url::parse(&format!("http://{}", config.address))
+            .expect("Failed to parse base URL"),
+    );
+    config
+});
+
+/// One sprite atlas that will be played repeatedly in the game.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SpriteAtlas {
+    pub path: PathBuf,
+    #[serde(default)]
+    pub offset: (u32, u32),
+    pub size: (u32, u32),
+    #[serde(default = "return_1")]
+    pub count: usize,
+    /// Milliseconds between switching frames.
+    #[serde(default = "return_1000")]
+    pub interval: u32,
+}
+const fn return_1() -> usize {
+    1
+}
+const fn return_1000() -> u32 {
+    1000
+}
+
+/// Configuration for sprites in the game.
+#[derive(Default, Serialize, Deserialize, Debug)]
+pub struct SpriteConfig {
+    /// Any child configurations that will be merged into this config.
+    #[serde(default)]
+    pub include: Vec<PathBuf>,
+    /// Map from aliases to the actual sprite.
+    #[serde(default)]
+    pub map: HashMap<String, Vec<SpriteAtlas>>,
+}
+
+impl SpriteConfig {
+    pub fn load(path: PathBuf) -> Self {
+        let base_path = path
+            .parent()
+            .expect("Config file should be a file with a parent directory");
+        let mut config: SpriteConfig = match std::fs::read_to_string(&path) {
+            Ok(content) => match serde_json::from_str(&content) {
+                Ok(config) => {
+                    log::info!("Sprite config loaded at {path:?}");
+                    config
+                }
+                Err(err) => {
+                    panic!("Failed to parse sprite config: {err}");
+                }
+            },
+            Err(err) => {
+                log::info!("Unable to read sprite config {path:?}(skipped): {err}");
+                Default::default()
+            }
+        };
+        for sub_path in config.include.drain(..) {
+            let sub_path = base_path.join(&sub_path);
+            config
+                .map
+                .extend(SpriteConfig::load(sub_path).map.into_iter());
+        }
+        for list in config.map.values_mut() {
+            for atlas in list.iter_mut() {
+                let new_path = base_path.join(&atlas.path);
+                atlas.path = new_path;
+            }
+        }
+        config
+    }
+}
+
+pub static SPRITE_CONFIG: LazyLock<SpriteConfig> =
+    LazyLock::new(|| SpriteConfig::load(STARTUP_CONFIG.sprite_config.clone()));

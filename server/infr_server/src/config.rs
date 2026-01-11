@@ -15,7 +15,7 @@ impl Default for StartupConfig {
         Self {
             address: std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), 4321),
             refresh_interval: 30,
-            script_config: PathBuf::from("scripts/scripts.toml"),
+            script_config: PathBuf::from("scripts/config.toml"),
         }
     }
 }
@@ -47,7 +47,9 @@ pub static STARTUP_CONFIG: LazyLock<StartupConfig> =
 /// This may be done in two ways: 1. explicitly write the map; 2. add included paths where the program will automatically find the lua file.
 #[derive(Default, Serialize, Deserialize, Debug)]
 pub struct ScriptConfig {
+    #[serde(default)]
     pub scripts: HashMap<String, PathBuf>,
+    #[serde(default)]
     pub included_paths: Vec<PathBuf>,
 }
 
@@ -74,7 +76,7 @@ pub static SCRIPT_CONFIG: LazyLock<ScriptConfig> = LazyLock::new(|| {
         .script_config
         .parent()
         .expect("Expected script config path to be a file(with a parent dir)");
-    let mut config = match std::fs::read_to_string(&STARTUP_CONFIG.script_config) {
+    let mut config: ScriptConfig = match std::fs::read_to_string(&STARTUP_CONFIG.script_config) {
         Ok(content) => match toml::from_str(&content) {
             Ok(config) => {
                 log::info!("Script config loaded: {config:?}");
@@ -89,11 +91,10 @@ pub static SCRIPT_CONFIG: LazyLock<ScriptConfig> = LazyLock::new(|| {
                 "Unable to read {:?}; Using default configuration...",
                 STARTUP_CONFIG.script_config
             );
-            let mut config = ScriptConfig::default();
-            config.included_paths.push(".".into());
-            config
+            Default::default()
         }
     };
+    config.included_paths.push(".".into());
     for path in config.scripts.values_mut() {
         let new_path = base_path.join(&path);
         *path = new_path;

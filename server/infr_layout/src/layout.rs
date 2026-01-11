@@ -170,7 +170,7 @@ impl Layout {
         }
         let table = lua.create_table()?;
         for (coord, objects) in objects.into_iter() {
-            table.set(coord.to_list(), objects)?;
+            table.set(coord, objects)?;
         }
         Ok(LuaValue::Table(table))
     }
@@ -301,7 +301,9 @@ impl Layout {
                 if let Some(previous) = new_move_queue.first()
                     && current.object == previous.object
                 {
-                    if current != *previous {
+                    // This is excluded, since it doesn't matter if the object NOT move two different ways
+                    if current.forbid && previous.forbid {
+                    } else if current != *previous {
                         return Err(InfrError::DifferentMovements(
                             current.clone(),
                             previous.clone(),

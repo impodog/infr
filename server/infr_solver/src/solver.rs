@@ -30,11 +30,6 @@ impl Coord {
             y: self.y.wrapping_add(rhs.y),
         }
     }
-
-    /// Converts the coordinates to a list of 2 integers. This is used for Lua conversion.
-    pub fn to_list(&self) -> [i32; 2] {
-        [self.x, self.y]
-    }
 }
 impl std::ops::Add for Coord {
     type Output = Self;
