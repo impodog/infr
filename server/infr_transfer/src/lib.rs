@@ -100,16 +100,6 @@ pub struct LoadSessionRequest {
     /// The path to the configuration file.
     pub path: PathBuf,
 }
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct LoadSessionResponse {
-    /// The id of the newly load session.
-    pub id: SessionId,
-    /// The requirements that the level config demands.
-    /// Clients must decide which files to load and send them via /scripts/add, before performing any actions on the session.
-    pub requirements: Vec<String>,
-}
-
-pub type ImportScriptsRequest = SessionId;
 
 pub type GetMetadataRequest = SessionId;
 

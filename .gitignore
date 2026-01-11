@@ -1,3 +1,5 @@
 /target
 config.toml
+/server.toml
+/client.toml
 /Cargo.lock

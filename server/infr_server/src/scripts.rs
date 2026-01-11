@@ -12,7 +12,7 @@ pub(crate) fn route_scripts() -> Router<AppState> {
 /// Calls to add a script with a name handle, if not already.
 async fn add_script(state: State<AppState>, req: Json<transfer::AddScriptRequest>) -> TextResponse {
     let transfer::AddScriptRequest { name, path } = req.0;
-    log::info!("Request to add script: {name} at {path:?}");
+    log::info!("Request to manually add script: {name} at {path:?}");
     if !path.exists() {
         return Err(transfer::ServerError::BadRequest(format!("File not found: {path:?}")).into());
     }
@@ -26,7 +26,7 @@ async fn add_script(state: State<AppState>, req: Json<transfer::AddScriptRequest
 }
 
 /// Forces to reload all scripts that were changed.
-async fn reload_script(state: State<AppState>) -> TextResponse {
+pub(crate) async fn reload_script(state: State<AppState>) -> TextResponse {
     log::info!("Reloading all scripts...");
     state
         .0

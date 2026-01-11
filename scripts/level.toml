@@ -1,4 +1,4 @@
-requirements = ["Basic"]
+requirements = ["basic"]
 
 [meta]
 title = "Test Level"

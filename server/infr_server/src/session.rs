@@ -8,8 +8,7 @@ use std::time::Duration;
 pub struct Session {
     pub meta: transfer::LevelMetadata,
     /// The script requirements provided by the level config.
-    pub requirements: Vec<String>,
-
+    // pub requirements: Vec<String>,
     pub snapshots: HashMap<transfer::SnapshotId, Snapshot>,
     pub current_snapshot_id: transfer::SnapshotId,
 
@@ -94,7 +93,6 @@ pub(crate) fn route_session(state: AppState) -> Router<AppState> {
     tokio::task::spawn(remove_expired_sessions(state));
     Router::new()
         .route("/load", post(load_session))
-        .route("/import", post(import_scripts))
         .route("/meta", get(get_metadata))
         .route("/status", get(get_session_status))
         .route("/step", post(step))
@@ -129,10 +127,11 @@ async fn remove_expired_sessions(state: AppState) {
 
 static SESSION_ID: AtomicU32 = AtomicU32::new(1);
 
+#[axum::debug_handler]
 async fn load_session(
     state: State<AppState>,
     req: Json<transfer::LoadSessionRequest>,
-) -> Response<Json<transfer::LoadSessionResponse>> {
+) -> Response<Json<transfer::SessionId>> {
     let transfer::LoadSessionRequest { path } = req.0;
     log::info!("Request to load session from: {path:?}");
     if !path.exists() {
@@ -149,67 +148,41 @@ async fn load_session(
         transfer::ServerError::BadRequest(format!("Unable to parse level config: {err}"))
     })?;
 
-    let mut layout = Layout::new();
-    for object in objects.into_iter() {
-        layout.map.push(Object::try_from(object)?);
-    }
-
-    let session = Session {
-        meta,
-        requirements: requirements.clone(),
-        snapshots: HashMap::new(),
-        current_snapshot_id: 1,
-        layout,
-        input_count: 0,
-        round: 0,
-        can_input: true,
-        initialized: false,
-        last_refresh: current_time(),
-    };
     let session_id = SESSION_ID.fetch_add(1, atomic::Ordering::SeqCst);
-    state
-        .0
-        .sessions
-        .write()
-        .unwrap()
-        .insert(session_id, Arc::new(Mutex::new(session)));
 
-    log::info!("Session {session_id} is loaded");
+    log::info!("Level config of session {session_id} is loaded. Now importing scripts...");
 
-    Ok(transfer::LoadSessionResponse {
-        id: session_id,
-        requirements,
+    {
+        let mut scripts = state.0.scripts.write().unwrap();
+        for requirement in requirements.iter() {
+            if let Some(path) = crate::config::SCRIPT_CONFIG.query(requirement) {
+                scripts.add(requirement, path);
+            } else {
+                log::error!(
+                    "Session {session_id}: Failed to find script for requirement {requirement}"
+                );
+            }
+        }
     }
-    .into())
-}
 
-/// This should be called after loading the session and calling /scripts/add, to ensure that all required scripts are
-/// actually loaded to the lua vm.
-async fn import_scripts(
-    state: State<AppState>,
-    req: Json<transfer::ImportScriptsRequest>,
-) -> Response<&'static str> {
-    let session_id = req.0;
-    let session_ref = state.0.get_session(session_id)?;
+    // We have to wait for scripts to be refreshed before continuing to lua require them.
+    crate::scripts::reload_script(state.clone()).await?;
 
-    log::info!("Importing scripts for session {session_id}");
+    let results = {
+        let mut join_set = tokio::task::JoinSet::new();
+        for requirement in requirements.iter() {
+            join_set.spawn(
+                state
+                    .0
+                    .lua
+                    .load(format!("require(\"{requirement}\")"))
+                    .exec_async(),
+            );
+        }
+        join_set.join_all().await
+    };
 
-    // This clone prevents sharing requirements across await, causing future to be not Send
-    let requirements = session_ref.lock().unwrap().requirements.clone();
-    let mut join_set = tokio::task::JoinSet::new();
-    for requirement in requirements.into_iter() {
-        join_set.spawn(
-            state
-                .0
-                .lua
-                .load(format!("require(\"{requirement}\")"))
-                .exec_async(),
-        );
-    }
-    let results = join_set.join_all().await;
-
-    let session = session_ref.lock().unwrap();
-    for (result, requirement) in results.into_iter().zip(session.requirements.iter()) {
+    for (result, requirement) in results.into_iter().zip(requirements.iter()) {
         match result {
             Ok(_) => {
                 log::info!("Session {session_id}: Script {requirement} loaded successfully")
@@ -221,7 +194,35 @@ async fn import_scripts(
         }
     }
 
-    Ok("All requirements imported without errors")
+    log::info!("Session {session_id}: scripts required loaded successfully");
+
+    let mut layout = Layout::new();
+    for object in objects.into_iter() {
+        layout.map.push(Object::try_from(object)?);
+    }
+
+    let session = Session {
+        meta,
+        snapshots: HashMap::new(),
+        current_snapshot_id: 1,
+        layout,
+        input_count: 0,
+        round: 0,
+        can_input: true,
+        initialized: false,
+        last_refresh: current_time(),
+    };
+
+    state
+        .0
+        .sessions
+        .write()
+        .unwrap()
+        .insert(session_id, Arc::new(Mutex::new(session)));
+
+    log::info!("Session {session_id} created successfully");
+
+    Ok(session_id.into())
 }
 
 async fn get_metadata(
