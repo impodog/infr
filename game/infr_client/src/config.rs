@@ -14,6 +14,7 @@ pub struct StartupConfig {
     pub refresh_interval: u32,
     pub sprite_config: PathBuf,
     pub window_size: (u32, u32),
+    pub fullscreen: bool,
 }
 impl StartupConfig {
     /// Returns a url with the given path under the configured host.
@@ -31,6 +32,7 @@ impl Default for StartupConfig {
             refresh_interval: 20,
             sprite_config: "assets/sprites/config.json".into(),
             window_size: (1920, 1080),
+            fullscreen: false,
         }
     }
 }
@@ -113,21 +115,28 @@ impl SpriteConfig {
                 }
             },
             Err(err) => {
-                log::info!("Unable to read sprite config {path:?}(skipped): {err}");
+                log::error!("Unable to read sprite config {path:?}(skipped): {err}");
                 Default::default()
             }
         };
+        for list in config.map.values_mut() {
+            let mut new_list = Vec::new();
+            for mut atlas in list.drain(..) {
+                let new_path = base_path.join(&atlas.path);
+                if let Ok(new_path) = new_path.canonicalize() {
+                    atlas.path = new_path;
+                    new_list.push(atlas);
+                } else {
+                    log::error!("Unable to read configurated image path: {new_path:?}(skipped)");
+                }
+            }
+            *list = new_list;
+        }
         for sub_path in config.include.drain(..) {
             let sub_path = base_path.join(&sub_path);
             config
                 .map
                 .extend(SpriteConfig::load(sub_path).map.into_iter());
-        }
-        for list in config.map.values_mut() {
-            for atlas in list.iter_mut() {
-                let new_path = base_path.join(&atlas.path);
-                atlas.path = new_path;
-            }
         }
         config
     }

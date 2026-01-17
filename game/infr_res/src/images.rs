@@ -1,10 +1,6 @@
 use std::time::Duration;
 
-use bevy::{
-    asset::{AssetId, uuid::Uuid},
-    platform::collections::HashMap,
-    prelude::*,
-};
+use bevy::{platform::collections::HashMap, prelude::*};
 use infr_client::config::SPRITE_CONFIG;
 
 #[derive(Default, Debug, Clone, Component)]
@@ -19,24 +15,22 @@ pub(crate) struct AnimationClock {
     total: usize,
 }
 
-/// Stores previously used uuids corresponding to each sprite config,
-/// for faster texture atlas creation.
-#[derive(Resource, Debug)]
-pub(crate) struct AnimationUuids(HashMap<String, Uuid>);
+#[derive(Resource, Default, Debug)]
+pub(crate) struct AnimationAtlasHandles(HashMap<String, Handle<TextureAtlasLayout>>);
 
 fn convert_to_sprite(
     name: String,
     asset_server: &AssetServer,
     atlas: &infr_client::config::SpriteAtlas,
     layouts: &mut Assets<TextureAtlasLayout>,
-    uuids: &mut AnimationUuids,
+    atlas_handles: &mut AnimationAtlasHandles,
 ) -> Sprite {
     let image: Handle<Image> = asset_server.load(atlas.path.clone());
-    let uuid = *uuids.0.entry(name).or_insert_with(Uuid::new_v4);
-    let asset_id = AssetId::Uuid { uuid };
-    layouts
-        .get_or_insert_with(asset_id, || {
-            TextureAtlasLayout::from_grid(
+    let layout = atlas_handles
+        .0
+        .entry(name)
+        .or_insert_with(|| {
+            layouts.add(TextureAtlasLayout::from_grid(
                 UVec2 {
                     x: atlas.size.0,
                     y: atlas.size.1,
@@ -48,12 +42,9 @@ fn convert_to_sprite(
                     x: atlas.offset.0,
                     y: atlas.offset.1,
                 }),
-            )
+            ))
         })
-        .expect("should not return error for uuids");
-    let layout = layouts
-        .get_strong_handle(asset_id)
-        .expect("this layout has just been added");
+        .clone();
     Sprite {
         image,
         texture_atlas: Some(TextureAtlas { layout, index: 0 }),
@@ -65,7 +56,7 @@ pub(crate) fn modify_animation(
     mut query: Query<(&Animation, &mut Sprite, &mut AnimationClock), Changed<Animation>>,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
-    mut uuids: ResMut<AnimationUuids>,
+    mut atlas_handles: ResMut<AnimationAtlasHandles>,
 ) {
     let default_sprite = SPRITE_CONFIG
         .map
@@ -77,7 +68,7 @@ pub(crate) fn modify_animation(
                 &asset_server,
                 sprite,
                 &mut layouts,
-                &mut uuids,
+                &mut atlas_handles,
             )
         })
         .unwrap_or_default();
@@ -98,7 +89,7 @@ pub(crate) fn modify_animation(
                 &asset_server,
                 atlas,
                 &mut layouts,
-                &mut uuids,
+                &mut atlas_handles,
             );
             sprite.custom_size = Some(animation.size);
             clock.timer = Timer::new(

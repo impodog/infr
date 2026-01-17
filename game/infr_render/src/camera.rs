@@ -1,10 +1,8 @@
 use bevy::{
-    asset::RenderAssetUsages,
     camera::{CameraOutputMode, ImageRenderTarget, RenderTarget, visibility::RenderLayers},
     prelude::*,
     render::render_resource::{
-        BlendState, Extent3d, FilterMode, TextureDescriptor, TextureDimension, TextureFormat,
-        TextureUsages,
+        Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
     },
 };
 use infr_client::config;
@@ -21,8 +19,8 @@ impl Default for VirtualResolution {
     }
 }
 
-pub const PIXEL_RENDER_LAYER: usize = 1;
-pub const DISPLAY_RENDER_LAYER: usize = 2;
+pub const PIXEL_RENDER_LAYER: RenderLayers = RenderLayers::layer(0);
+pub const DISPLAY_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 
 #[derive(Component)]
 pub struct PixelCamera;
@@ -65,11 +63,10 @@ pub(crate) fn setup_camera(
         PixelCamera,
         Camera {
             output_mode: CameraOutputMode::Write {
-                blend_state: Some(BlendState::REPLACE),
+                blend_state: None,
                 clear_color: ClearColorConfig::Custom(Color::NONE),
             },
             order: -1,
-
             ..Default::default()
         },
         RenderTarget::Image(ImageRenderTarget {
@@ -78,7 +75,7 @@ pub(crate) fn setup_camera(
         }),
         Msaa::Off,
         Camera2d,
-        RenderLayers::layer(PIXEL_RENDER_LAYER),
+        PIXEL_RENDER_LAYER,
     ));
 
     // The camera that renders to the display.
@@ -86,7 +83,8 @@ pub(crate) fn setup_camera(
         MainCamera,
         Camera2d,
         IsDefaultUiCamera,
-        RenderLayers::layer(DISPLAY_RENDER_LAYER),
+        Msaa::Off,
+        DISPLAY_RENDER_LAYER,
     ));
 
     commands.spawn((
@@ -98,6 +96,6 @@ pub(crate) fn setup_camera(
             )),
             ..Default::default()
         },
-        RenderLayers::layer(DISPLAY_RENDER_LAYER),
+        DISPLAY_RENDER_LAYER,
     ));
 }
