@@ -54,15 +54,15 @@ impl Scripts {
 
     /// Adds Rust API to the lua environment.
     pub fn add_global_functions(&self, lua: &Lua) -> LuaResult<()> {
-        let globals = lua.globals();
+        let module = lua.create_table()?;
 
-        globals.set("UNUSED_ID", infr_solver::consts::UNUSED_ID)?;
-        globals.set("DIRECTIONS", ["Right", "Up", "Left", "Down"])?;
+        module.set("UNUSED_ID", infr_solver::consts::UNUSED_ID)?;
+        module.set("DIRECTIONS", ["Right", "Up", "Left", "Down"])?;
 
         {
             let features = self.features.clone();
             let features_names = self.feature_names.clone();
-            globals.set(
+            module.set(
                 "register_feature",
                 lua.create_function(move |_, feature: Feature| -> LuaResult<FeatureId> {
                     let id = FeatureId::new();
@@ -81,7 +81,7 @@ impl Scripts {
 
         {
             let instances = self.instances.clone();
-            globals.set(
+            module.set(
                 "register_instance",
                 lua.create_function(move |_, instance: Instance| -> LuaResult<InstanceId> {
                     let id = InstanceId::new();
@@ -93,7 +93,7 @@ impl Scripts {
 
         {
             let grabbed_tables = self.grabbed_tables.clone();
-            globals.set(
+            module.set(
                 "grab_table",
                 lua.create_function(move |lua: &Lua, object: u32| -> LuaResult<LuaValue> {
                     let mut grabbed_tables = grabbed_tables.lock().unwrap();
@@ -113,7 +113,7 @@ impl Scripts {
 
         {
             let table = lua.create_table()?;
-            table.set(
+            module.set(
                 "move",
                 lua.create_function(
                     |_,
@@ -123,8 +123,10 @@ impl Scripts {
                     },
                 )?,
             )?;
-            globals.set("Coord", table)?;
+            module.set("Coord", table)?;
         }
+
+        lua.globals().set("infr", module)?;
 
         Ok(())
     }
@@ -229,177 +231,3 @@ pub struct Instance {
 }
 #[derive(Debug, Id)]
 pub struct InstanceId(u32);
-
-// -- Implement relevant lua conversions.
-impl IntoLua for crate::Manner {
-    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        let table = lua.create_table()?;
-        match self {
-            Self::Swipe(direction) => {
-                table.set("type", "Swipe")?;
-                table.set("direction", direction)?;
-            }
-            Self::Remove => {
-                table.set("type", "Remove")?;
-            }
-            Self::Teleport => {
-                table.set("type", "Teleport")?;
-            }
-            Self::Add(object_desc) => {
-                table.set("type", "Add")?;
-                table.set("object", object_desc)?;
-            }
-        }
-        Ok(LuaValue::Table(table))
-    }
-}
-impl FromLua for crate::Manner {
-    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::String(kind) => {
-                let kind = kind.to_str();
-                match kind.as_ref().map(LuaBorrowedStr::as_ref) {
-                    Ok("Remove") => Ok(Self::Remove),
-                    Ok("Teleport") => Ok(Self::Teleport),
-                    _ => Err(LuaError::FromLuaConversionError {
-                        from: "string",
-                        to: "Manner".to_owned(),
-                        message: Some(
-                            "For manner shorthand forms, only Remove and Teleport are allowed"
-                                .to_owned(),
-                        ),
-                    }),
-                }
-            }
-            LuaValue::Table(table) => {
-                let kind = table.get::<String>("kind")?;
-                match kind.as_str() {
-                    "Swipe" => {
-                        let direction = table.get::<infr_solver::Direction>("direction")?;
-                        Ok(Self::Swipe(direction))
-                    }
-                    "Remove" => Ok(Self::Remove),
-                    "Teleport" => Ok(Self::Teleport),
-                    "Add" => {
-                        let object_desc = table.get::<infr_solver::ObjectDesc>("object")?;
-                        Ok(Self::Add(object_desc))
-                    }
-                    _ => Err(LuaError::FromLuaConversionError {
-                        from: "string",
-                        to: "Manner".to_owned(),
-                        message: Some(format!("Invalid kind {kind} for Manner")),
-                    }),
-                }
-            }
-            _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Manner".to_owned(),
-                message: Some("Invalid value type for Manner".to_owned()),
-            }),
-        }
-    }
-}
-
-impl IntoLua for crate::Movement {
-    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        let table = lua.create_table()?;
-        table.set("manner", self.manner)?;
-        table.set("object", self.object)?;
-        table.set("dest", self.dest)?;
-        table.set("required_by", self.required_by)?;
-        table.set("forbid", self.forbid)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-impl FromLua for crate::Movement {
-    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(table) => {
-                let manner = table.get::<crate::Manner>("manner")?;
-                let object = table.get::<u32>("object")?;
-                let dest = table.get::<infr_solver::Coord>("dest")?;
-                let required_by = table
-                    .get::<u32>("required_by")
-                    .unwrap_or(infr_solver::consts::UNUSED_ID);
-                let forbid = table.get::<bool>("forbid").unwrap_or(false);
-                Ok(Self {
-                    manner,
-                    object,
-                    dest,
-                    required_by,
-                    forbid,
-                })
-            }
-            _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Movement".to_owned(),
-                message: Some("Invalid value type for Movement".to_owned()),
-            }),
-        }
-    }
-}
-
-impl IntoLua for crate::Signal {
-    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
-        let table = lua.create_table()?;
-        table.set("direction", self.direction)?;
-        table.set("round", self.round)?;
-        Ok(LuaValue::Table(table))
-    }
-}
-impl FromLua for crate::Signal {
-    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(table) => {
-                let direction = table.get("direction")?;
-                let round = table.get("round")?;
-                Ok(Self { direction, round })
-            }
-            _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Signal".to_owned(),
-                message: Some("Invalid value type for Signal".to_owned()),
-            }),
-        }
-    }
-}
-
-impl FromLua for Feature {
-    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(table) => {
-                let name = table.get("name")?;
-                let on_input = table.get("on_input")?;
-                let get_listen = table.get("get_listen")?;
-                let respond = table.get("respond")?;
-                Ok(Self {
-                    name,
-                    on_input,
-                    get_listen,
-                    respond,
-                })
-            }
-            _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Feature".to_owned(),
-                message: Some("Invalid value type for Feature".to_owned()),
-            }),
-        }
-    }
-}
-
-impl FromLua for Instance {
-    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
-        match value {
-            LuaValue::Table(table) => {
-                let feature = table.get("feature")?;
-                Ok(Self { feature })
-            }
-            _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Instance".to_owned(),
-                message: Some("Invalid value type for Instance".to_owned()),
-            }),
-        }
-    }
-}

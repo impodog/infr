@@ -1,0 +1,8 @@
+[package]
+name = "infr_render"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+infr_client = { path = "../infr_client" }
+bevy = { version = "0.18.0", default-features = false, features = ["bevy_render", "bevy_camera", "ui_bevy_render"] }

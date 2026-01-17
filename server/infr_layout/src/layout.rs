@@ -29,8 +29,10 @@ pub struct Movement {
     pub manner: Manner,
     /// The id of the object that executes the movement.
     pub object: u32,
-    /// This movement must be performed for this movement to work.
-    pub required_by: u32,
+    /// This movement is not performed unless these movements are performed.
+    pub prereqs: Vec<u32>,
+    /// These movements will not be performed unless this movement is performed.
+    pub postreqs: Vec<u32>,
     pub dest: Coord,
     /// This movement can never be performed if set to true.
     pub forbid: bool,
@@ -45,6 +47,19 @@ impl Ord for Movement {
         self.object
             .cmp(&other.object)
             .then_with(|| self.dest.cmp(&other.dest))
+    }
+}
+impl Movement {
+    /// Returns if the two movements can never be performed together.
+    /// This will always return `false` if the two moving objects are different.
+    pub fn conflicts(&self, other: &Movement) -> bool {
+        if self.object != other.object {
+            return false;
+        }
+        if self.forbid && other.forbid {
+            return false;
+        }
+        self.dest != other.dest || self.manner != other.manner
     }
 }
 
@@ -302,8 +317,7 @@ impl Layout {
                     && current.object == previous.object
                 {
                     // This is excluded, since it doesn't matter if the object NOT move two different ways
-                    if current.forbid && previous.forbid {
-                    } else if current != *previous {
+                    if current.conflicts(previous) {
                         return Err(InfrError::DifferentMovements(
                             current.clone(),
                             previous.clone(),
@@ -324,12 +338,17 @@ impl Layout {
                 let object = *map_object_node
                     .entry(movement.object)
                     .or_insert_with(|| graph.add(movement.object));
-                // Filter unused id, but preserve the moved object(above)
-                if movement.required_by != consts::UNUSED_ID {
-                    let subsequent = *map_object_node
-                        .entry(movement.required_by)
-                        .or_insert_with(|| graph.add(movement.required_by));
-                    graph.connect(object, subsequent);
+                for prereq in movement.prereqs.iter().copied() {
+                    let prereq = *map_object_node
+                        .entry(prereq)
+                        .or_insert_with(|| graph.add(prereq));
+                    graph.connect(prereq, object);
+                }
+                for postreq in movement.postreqs.iter().copied() {
+                    let postreq = *map_object_node
+                        .entry(postreq)
+                        .or_insert_with(|| graph.add(postreq));
+                    graph.connect(object, postreq);
                 }
             }
             graph.scc()

@@ -1,1 +1,3 @@
-include = ["box/box.toml"]
+{
+  "include": ["box/box.json", "empty/empty.json"]
+}

@@ -1,105 +1,110 @@
 ---@meta infr
 ---@diagnostic disable:undefined-doc-param
 
+--- Defines interface to the infr game.
+---@module 'infr'
+infr = {}
+
 --- Placeholder for empty/unused ids.
----@global UNUSED_ID integer
-UNUSED_ID = 0xfeedd095
+---@global infr.UNUSED_ID integer
+infr.UNUSED_ID = 0xfeedd095
 
 --- List of all four directions.
 ---@global DIRECTIONS Direction[]
-DIRECTIONS = { "Right", "Up", "Left", "Down" }
+infr.DIRECTIONS = { "Right", "Up", "Left", "Down" }
 
----@alias Direction "Right" | "Up" | "Left" | "Down"
+---@alias infr.Direction "Right" | "Up" | "Left" | "Down"
 
 --- Represents a pair of coordinates in the game grid.
----@class Coord
+---@class infr.Coord
 ---@field x integer Horizontal coordinate from left to right.
 ---@field y integer Vertical coordinate from bottom to top.
-Coord = {}
+infr.Coord = {}
 
 --- The type of the object depending on whether and how they make sentences.
 --- Instance: The object is only affected, and does not make a sentence.
 --- Symbol: Both Instance and Structure.
 --- Structure: The object can only be used in sentences.
 --- Operator: Special words that only join sentences.
----@alias ObjectKind "Instance" | "Symbol" | "Structure" | "Operator"
+---@alias infr.ObjectKind "Instance" | "Symbol" | "Structure" | "Operator"
 
 --- A minimal description of a game object transferred between Rust and Lua.
----@class ObjectDesc
+---@class infr.ObjectDesc
 ---@field id integer Globally unique identifier of the object.
----@field direction Direction | nil The direction the object is facing. This may be nil for no specific direction.
----@field kind ObjectKind The type of the object.
+---@field direction infr.Direction | nil The direction the object is facing. This may be nil for no specific direction.
+---@field kind infr.ObjectKind The type of the object.
 ---@field group string[] When lua receives, this is all the groups the object is proven to be in; When lua sends, this may only have one item, describing the object's nature.
-ObjectDesc = {}
+infr.ObjectDesc = {}
 
 --- The manner of movement. This decides many behaviors and visual effects.
 --- Teleport: The object is directly moved to a new position assuming there are no side effects.
 --- Remove: Removes the object.
 --- Swipe: Moves the object in a direction, and may cause side effects such as pushing.
 --- Add: Adds a new object. Note that the object description should use UNUSED_ID, and an id will be assigned by Rust later.
----@alias Manner {kind: "Teleport" | "Remove"} | {kind: "Swipe", direction: Direction} | {kind: "Add", object: ObjectDesc}
+---@alias infr.Manner {kind: "Teleport" | "Remove"} | {kind: "Swipe", direction: infr.Direction} | {kind: "Add", object: infr.ObjectDesc}
 
 --- A single movement of a object. This controls the whole game's actions and follows strict logical rules.
 --- Please note that in one round, one object can only have one movement(ignoring duplicates). Otherwise it is a logical failure.
----@class Movement
----@field manner Manner The manner of of the movement.
+---@class infr.Movement
+---@field manner infr.Manner The manner of of the movement.
 ---@field object integer The id of the object that performs this movement.
----@field dest Coord The destination.
----@field required_by integer If not UNUSED_ID, this is the id of the object whose movement can only be performed if this movement is performed.
+---@field dest infr.Coord The destination.
+---@field prereqs integer[] | nil Ids of objects whose movement must be performed before this movement can be performed.
+---@field postreqs integer[] | nil Ids of objects whose movement must be performed after this movement.
 ---@field forbid boolean If set to true, this movement can never be performed.
-Movement = {}
+infr.Movement = {}
 
 --- The signal sent by stepping the layout. Each signal corresponds to a "round", where one or many "round"s happen after one player input.
 --- That is to say, only the first "round" have a direction(player input), and subsequent rounds don't(direction is nil).
----@class Signal
----@field direction Direction | nil
+---@class infr.Signal
+---@field direction infr.Direction | nil
 ---@field round integer
-Signal = {}
+infr.Signal = {}
 
 --- A compact version of all objects, where you can access objects in certain coordinates.
----@alias Layout table<Coord, ObjectDesc[]>
+---@alias infr.Layout table<infr.Coord, infr.ObjectDesc[]>
 
 --- A function that is executed when the layout is stepped (at the start of each round).
----@alias OnInput fun(layout: Layout, signal: Signal, object: integer, coord: Coord): Movement[]
+---@alias infr.OnInput fun(layout: infr.Layout, signal: infr.Signal, object: integer, coord: infr.Coord): infr.Movement[]
 
 --- A function that is executed after "on_input", determining which objects they should listen to.
 --- Only listened objects' movements will be sent to "respond".
----@alias GetListen fun(layout: Layout, object: integer, coord: Coord): integer[]
+---@alias infr.GetListen fun(layout: infr.Layout, object: integer, coord: infr.Coord): integer[]
 
 --- Responds to listened objects' movements.
----@alias Respond fun(layout: Layout, movement: Movement, object: integer, coord: Coord): Movement[]
+---@alias infr.Respond fun(layout: infr.Layout, movement: infr.Movement, object: integer, coord: infr.Coord): infr.Movement[]
 
 --- A collection of functions that will be applied to object that are proved in this feature group.
----@class Feature
+---@class infr.Feature
 ---@field name string The name of the feature. It should be CamelCase for good practice.
----@field on_input OnInput | nil Executed at the start of a round.
----@field get_listen GetListen | nil Executed after "on_input", determines what movements to "respond" to.
----@field respond Respond | nil Executed for each listened movement.
-Feature = {}
+---@field on_input infr.OnInput | nil Executed at the start of a round.
+---@field get_listen infr.GetListen | nil Executed after "on_input", determines what movements to "respond" to.
+---@field respond infr.Respond | nil Executed for each listened movement.
+infr.Feature = {}
 
 --- Creates an instance type that are tied to a feature, and are objects that have illustrations(in the frontend).
----@class Instance
+---@class infr.Instance
 ---@field feature integer The feature that this instance is tied to.
-Instance = {}
+infr.Instance = {}
 
 --- Registers a feature, returning its id.
----@param feature Feature
+---@param feature infr.Feature
 ---@return integer The assigned id of the feature.
-function register_feature(feature) end
+function infr.register_feature(feature) end
 
 --- Registers an instance, returning its id. Instances are tied to only one feature.
----@param instance Instance
+---@param instance infr.Instance
 ---@return integer The assigned id of the instance.
-function register_instance(instance) end
+function infr.register_instance(instance) end
 
 --- Applies for a table local to the current player input sequence and unique to each object.
 --- This can be useful for tracking custom information.
 ---@param object integer The object that this table tracks.
 ---@return table The grabbed table.
-function grab_table(object) end
+function infr.grab_table(object) end
 
 --- Moves the coordinates one tile in the given direction.
----@param coord Coord
----@param direction Direction
----@return Coord
-function Coord.move(coord, direction) end
+---@param coord infr.Coord
+---@param direction infr.Direction
+---@return infr.Coord
+function infr.Coord.move(coord, direction) end

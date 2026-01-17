@@ -1,12 +1,12 @@
-register_feature({
+infr.register_feature({
     name = "You",
     on_input = function(layout, signal, object, coord)
         if signal.direction ~= nil then
-            local dest = Coord.move(coord, signal.direction)
+            local dest = infr.Coord.move(coord, signal.direction)
             return { {
                 manner = { kind = "Swipe", direction = signal.direction },
                 object = object,
-                required_by = UNUSED_ID,
+                required_by = infr.UNUSED_ID,
                 dest = dest,
                 forbid = false,
             }, }

@@ -13,6 +13,7 @@ pub struct StartupConfig {
     base_url: Option<reqwest::Url>,
     pub refresh_interval: u32,
     pub sprite_config: PathBuf,
+    pub window_size: (u32, u32),
 }
 impl StartupConfig {
     /// Returns a url with the given path under the configured host.
@@ -29,11 +30,12 @@ impl Default for StartupConfig {
             base_url: None,
             refresh_interval: 20,
             sprite_config: "assets/sprites/config.json".into(),
+            window_size: (1920, 1080),
         }
     }
 }
 
-pub const STARTUP_CONFIG_PATH: &'static str = "client.toml";
+pub const STARTUP_CONFIG_PATH: &str = "client.toml";
 pub static STARTUP_CONFIG: LazyLock<StartupConfig> = LazyLock::new(|| {
     let mut config: StartupConfig = match std::fs::read_to_string(STARTUP_CONFIG_PATH) {
         Ok(content) => match toml::from_str(&content) {
@@ -66,14 +68,18 @@ pub struct SpriteAtlas {
     pub path: PathBuf,
     #[serde(default)]
     pub offset: (u32, u32),
+    #[serde(default = "return_default_size")]
     pub size: (u32, u32),
     #[serde(default = "return_1")]
-    pub count: usize,
+    pub count: u32,
     /// Milliseconds between switching frames.
     #[serde(default = "return_1000")]
     pub interval: u32,
 }
-const fn return_1() -> usize {
+const fn return_default_size() -> (u32, u32) {
+    (32, 32)
+}
+const fn return_1() -> u32 {
     1
 }
 const fn return_1000() -> u32 {

@@ -115,7 +115,10 @@ impl Map {
                     try_return!(&format!("{group}Teleport"));
                 }
             },
-            None => {}
+            None => {
+                try_return!(&format!("{group}{direction}Static"));
+                try_return!(&format!("{group}Static"));
+            }
         }
         try_return!(&format!("{group}{direction}"));
         try_return!(group);
