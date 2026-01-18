@@ -1,7 +1,11 @@
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    tasks::{AsyncComputeTaskPool, TaskPool},
+};
 use infr_res::Animation;
 
 fn main() {
+    AsyncComputeTaskPool::get_or_init(|| TaskPool::new());
     App::new()
         .add_plugins((
             DefaultPlugins

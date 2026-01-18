@@ -3,8 +3,8 @@
 mod images;
 pub use images::*;
 
-mod client;
-pub use client::*;
+mod state;
+pub use state::*;
 
 use bevy::prelude::*;
 pub struct InfrResPlugin;

@@ -8,14 +8,17 @@ use bevy::{
 use infr_client::config;
 
 /// The resolution that the pixel camera renders to.
-#[derive(Resource, Debug, Clone)]
+#[derive(Resource, Debug, Clone, Copy)]
 pub struct VirtualResolution {
     pub x: u32,
     pub y: u32,
 }
 impl Default for VirtualResolution {
     fn default() -> Self {
-        VirtualResolution { x: 400, y: 225 }
+        VirtualResolution {
+            x: config::STARTUP_CONFIG.pixel_grid.0,
+            y: config::STARTUP_CONFIG.pixel_grid.1,
+        }
     }
 }
 
@@ -23,7 +26,7 @@ pub const PIXEL_RENDER_LAYER: RenderLayers = RenderLayers::layer(0);
 pub const DISPLAY_RENDER_LAYER: RenderLayers = RenderLayers::layer(1);
 
 #[derive(Component)]
-pub struct PixelCamera;
+pub struct PixelCamera(Handle<Image>);
 
 #[derive(Component)]
 pub struct MainCamera;
@@ -60,7 +63,7 @@ pub(crate) fn setup_camera(
 
     // The camera to output to a texture, which creates a pixel effect.
     commands.spawn((
-        PixelCamera,
+        PixelCamera(texture.clone()),
         Camera {
             output_mode: CameraOutputMode::Write {
                 blend_state: None,
@@ -98,4 +101,22 @@ pub(crate) fn setup_camera(
         },
         DISPLAY_RENDER_LAYER,
     ));
+}
+
+pub(crate) fn update_camera(
+    resolution: Res<VirtualResolution>,
+    camera: Query<&PixelCamera>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    if resolution.is_changed() {
+        let texture_handle = camera.single().unwrap().0.clone();
+        let texture = images
+            .get_mut(texture_handle.id())
+            .expect("Pixel image previously inserted should exist");
+        texture.resize(Extent3d {
+            width: resolution.x,
+            height: resolution.y,
+            depth_or_array_layers: 1,
+        });
+    }
 }

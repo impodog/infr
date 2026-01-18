@@ -14,6 +14,8 @@ pub struct StartupConfig {
     pub refresh_interval: u32,
     pub sprite_config: PathBuf,
     pub window_size: (u32, u32),
+    pub pixel_grid: (u32, u32),
+    pub tile_size: (u32, u32),
     pub fullscreen: bool,
 }
 impl StartupConfig {
@@ -32,6 +34,8 @@ impl Default for StartupConfig {
             refresh_interval: 20,
             sprite_config: "assets/sprites/config.json".into(),
             window_size: (1920, 1080),
+            pixel_grid: (800, 450),
+            tile_size: (32, 32),
             fullscreen: false,
         }
     }
