@@ -1,5 +1,7 @@
 //! Loads client configuration.
 
+use bevy::prelude::UVec2;
+
 use serde::{Deserialize, Serialize};
 
 use std::{collections::HashMap, path::PathBuf, sync::LazyLock};
@@ -148,3 +150,6 @@ impl SpriteConfig {
 
 pub static SPRITE_CONFIG: LazyLock<SpriteConfig> =
     LazyLock::new(|| SpriteConfig::load(STARTUP_CONFIG.sprite_config.clone()));
+
+pub static TILE_SIZE: LazyLock<UVec2> =
+    LazyLock::new(|| UVec2::new(STARTUP_CONFIG.tile_size.0, STARTUP_CONFIG.tile_size.1));

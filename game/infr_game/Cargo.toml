@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 infr_client = { path = "../infr_client" }
-bevy = { version = "0.18.0" }
+bevy = { version = "0.18.0", default-features = false }
 infr_res = { path = "../infr_res" }
 infr_render = { path = "../infr_render" }
 infr_transfer = { path = "../../server/infr_transfer" }

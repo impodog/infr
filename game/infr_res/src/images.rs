@@ -15,6 +15,28 @@ pub(crate) struct AnimationClock {
     total: usize,
 }
 
+impl Animation {
+    /// Creates an animation with default tile size.
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            size: Vec2::new(
+                infr_client::config::TILE_SIZE.x as f32,
+                infr_client::config::TILE_SIZE.y as f32,
+            ),
+        }
+    }
+
+    /// Creates an animation if the image is available, or returns the default value.
+    pub fn new_or_default(name: Option<String>) -> Self {
+        if let Some(name) = name {
+            Self::new(name)
+        } else {
+            Self::default()
+        }
+    }
+}
+
 #[derive(Resource, Default, Debug)]
 pub(crate) struct AnimationAtlasHandles(HashMap<String, Handle<TextureAtlasLayout>>);
 

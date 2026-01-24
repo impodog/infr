@@ -5,5 +5,5 @@ title = "Test Level"
 
 [[objects]]
 direction = 1
-group = "$You"
+group = "$Empty"
 coord = [0, 0]
