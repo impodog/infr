@@ -1,8 +1,17 @@
-//! Implements infr client interface, including script management and level loading.
-
-pub mod config;
-
 mod map;
 pub use map::*;
 
-mod prelude;
+mod object;
+pub use object::*;
+
+pub mod prelude;
+
+pub mod config;
+
+use bevy::prelude::*;
+
+pub struct InfrClientPlugin;
+
+impl Plugin for InfrClientPlugin {
+    fn build(&self, app: &mut App) {}
+}

@@ -14,9 +14,17 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-/// The direction which the object is facing. 1-Right 2-Up 3-Left 4-Right Others-No direction
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// The direction which the object is facing. 1-Right 2-Up 3-Left 4-Down Others-No direction
+#[derive(
+    Serialize, Deserialize, Default, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 pub struct Direction(pub u8);
+impl Direction {
+    pub const RIGHT: Self = Self(1);
+    pub const UP: Self = Self(2);
+    pub const LEFT: Self = Self(3);
+    pub const DOWN: Self = Self(4);
+}
 
 /// The coordinates where tiles are.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

@@ -8,8 +8,5 @@ bevy = { version = "0.18.0", default-features = false, features = [
     "2d",
     "wayland",
     "dynamic_linking",
-    "debug",
 ] }
 infr_client = { path = "../infr_client" }
-infr_render = { path = "../infr_render" }
-infr_res = { path = "../infr_res" }
