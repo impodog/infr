@@ -6,7 +6,7 @@ pub mod prelude;
 pub use map::*;
 pub use object::*;
 
-use bevy::prelude::*;
+use bevy::{prelude::*, time::common_conditions::on_timer};
 
 #[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GlobalState {
@@ -24,10 +24,16 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<AnyObjectMoving>();
         app.init_state::<GlobalState>();
         app.add_systems(Update, (convert_position,));
-        app.add_systems(FixedPreUpdate, (start_load_map,));
+        app.add_systems(PreUpdate, (start_load_map,));
         app.add_systems(
             FixedUpdate,
             (move_object,).run_if(in_state(GlobalState::Game)),
+        );
+        app.add_systems(
+            FixedUpdate,
+            refresh_session.run_if(on_timer(std::time::Duration::from_millis(
+                config::CONFIG.server.refresh_interval,
+            ))),
         );
     }
 }

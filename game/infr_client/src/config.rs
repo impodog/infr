@@ -66,6 +66,7 @@ pub struct DisplayConfig {
     pub window_size: (u32, u32),
 }
 path_wrapper!(DisplayConfigWrapper, DisplayConfig);
+
 impl Default for DisplayConfig {
     fn default() -> Self {
         Self {
@@ -74,6 +75,7 @@ impl Default for DisplayConfig {
         }
     }
 }
+
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct LevelPack(pub Vec<PathBuf>);
 path_wrapper!(LevelPackWrapper, LevelPack);
@@ -90,12 +92,31 @@ impl LevelPackWrapper {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct ServerConfig {
+    pub address: String,
+    pub refresh_interval: u64,
+}
+path_wrapper!(ServerConfigWrapper, ServerConfig);
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            address: "127.0.0.1:4321".to_owned(),
+            refresh_interval: 20,
+        }
+    }
+}
+
 /// Serde entry point for the config file.
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct ConfigFile {
     #[serde(default)]
     pub display: DisplayConfigWrapper,
+    #[serde(default)]
     pub levels: HashMap<String, LevelPackWrapper>,
+    #[serde(default)]
+    pub server: ServerConfigWrapper,
 }
 
 impl ConfigFile {

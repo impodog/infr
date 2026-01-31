@@ -20,7 +20,7 @@ impl Default for StartupConfig {
     }
 }
 
-pub const STARTUP_CONFIG_PATH: &'static str = "server.toml";
+pub const STARTUP_CONFIG_PATH: &str = "server.toml";
 
 pub static STARTUP_CONFIG: LazyLock<StartupConfig> =
     LazyLock::new(|| match std::fs::read_to_string(STARTUP_CONFIG_PATH) {
