@@ -1,14 +1,17 @@
 use bevy::prelude::*;
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::ops::Deref;
+use std::path::PathBuf;
+use std::sync::LazyLock;
 
 /// Creates a wrapper, deserializing either path or direct input.
 macro_rules! path_wrapper {
     ($wrapper:ident, $inner:ty) => {
         /// Wrapper that deserializes from either a file path (string) or direct value
-        #[derive(Debug, Clone)]
-        pub struct $wrapper($inner);
+        #[derive(Debug, Clone, Default)]
+        pub struct $wrapper($inner, pub PathBuf);
         impl Deref for $wrapper {
             type Target = $inner;
 
@@ -45,9 +48,12 @@ macro_rules! path_wrapper {
                                 e
                             ))
                         })?;
-                        Ok($wrapper(value))
+                        Ok($wrapper(
+                            value,
+                            path.canonicalize().unwrap().parent().unwrap().into(),
+                        ))
                     }
-                    FileOrDirect::Direct(value) => Ok($wrapper(value)),
+                    FileOrDirect::Direct(value) => Ok($wrapper(value, Default::default())),
                 }
             }
         }
@@ -56,13 +62,54 @@ macro_rules! path_wrapper {
 
 #[derive(Deserialize, Debug, Clone)]
 pub struct DisplayConfig {
-    pub tile_size: UVec2,
-    pub window_size: UVec2,
+    pub tile_size: (u32, u32),
+    pub window_size: (u32, u32),
 }
 path_wrapper!(DisplayConfigWrapper, DisplayConfig);
+impl Default for DisplayConfig {
+    fn default() -> Self {
+        Self {
+            tile_size: (32, 32),
+            window_size: (1920, 1080),
+        }
+    }
+}
+#[derive(Deserialize, Debug, Clone, Default)]
+pub struct LevelPack(pub Vec<PathBuf>);
+path_wrapper!(LevelPackWrapper, LevelPack);
+
+impl LevelPackWrapper {
+    pub fn find(&self, name: &str) -> Option<PathBuf> {
+        for path in self.0.0.iter() {
+            let target = self.1.join(path).join(name).with_extension("toml");
+            if target.exists() {
+                return Some(target);
+            }
+        }
+        None
+    }
+}
 
 /// Serde entry point for the config file.
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Clone, Default)]
 pub struct ConfigFile {
+    #[serde(default)]
     pub display: DisplayConfigWrapper,
+    pub levels: HashMap<String, LevelPackWrapper>,
 }
+
+impl ConfigFile {
+    pub fn find_level(&self, pack: &str, name: &str) -> Option<PathBuf> {
+        let pack = self.levels.get(pack)?;
+        pack.find(name)
+    }
+}
+
+pub static CONFIG: LazyLock<ConfigFile> =
+    LazyLock::new(|| match std::fs::read_to_string("client.toml") {
+        Ok(content) => toml::from_str(content.as_str()).expect("client.toml failed to parse"),
+        Err(err) => {
+            warn!("Unable to find client.toml: {err}, using default config");
+            ConfigFile::default()
+        }
+    });
