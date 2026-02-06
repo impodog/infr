@@ -119,11 +119,14 @@ impl Default for ServerConfig {
     }
 }
 
+/// Game instance and game play related configuration.
 #[derive(Deserialize, Debug, Clone)]
 pub struct ClientConfig {
     pub framerate: u32,
     #[serde(skip)]
     pub frame_duration: std::time::Duration,
+    pub movement_velocity: f32,
+    pub teleport_velocity: f32,
 }
 path_wrapper!(ClientConfigWrapper, ClientConfig);
 
@@ -132,6 +135,8 @@ impl Default for ClientConfig {
         Self {
             framerate: 60,
             frame_duration: std::time::Duration::from_secs_f32(1.0 / 60.0),
+            movement_velocity: 4.0,
+            teleport_velocity: 20.0,
         }
     }
 }

@@ -72,6 +72,22 @@ pub struct Movement {
     pub dest: Position,
     pub manner: transfer::MoveManner,
 }
+pub(crate) fn observe_movement_event(
+    event: On<Movement>,
+    mut q_move_state: Query<&mut MovementState>,
+) {
+    let Ok(mut move_state) = q_move_state.get_mut(event.entity) else {
+        warn!("Sending movement event to entity without MovementState");
+        return;
+    };
+    let speed: f32 = match &event.manner {
+        transfer::MoveManner::Swipe(_) => config::CONFIG.client.movement_velocity,
+        _ => config::CONFIG.client.teleport_velocity,
+    };
+    move_state.moving = true;
+    move_state.dest = event.dest.0;
+    move_state.speed = speed;
+}
 
 /// Stores current movement animation of the object.
 #[derive(Component, Default, Debug, Clone)]
@@ -89,6 +105,12 @@ pub(crate) fn move_object(
     mut any_object_moving: ResMut<AnyObjectMoving>,
     time: Res<Time>,
 ) {
+    fn min_max(a: f32, b: f32) -> (f32, f32) {
+        let (a, b) = if a < b { (a, b) } else { (b, a) };
+        // This prevents floating point precision causing animation not to end.
+        (a - 1e-5, b + 1e-5)
+    }
+
     let any_moving = OnceLock::<bool>::new();
     q_object
         .par_iter_mut()
@@ -96,15 +118,15 @@ pub(crate) fn move_object(
             if movement_state.moving {
                 let direction = (movement_state.dest - **position).normalize_or_zero();
                 let target = **position + direction * movement_state.speed * time.delta_secs();
-                let (min, max) = if target.x < position.x {
-                    (target.x, position.x)
-                } else {
-                    (position.x, target.x)
-                };
+                let (min_x, max_x) = min_max(target.x, position.x);
+                let (min_y, max_y) = min_max(target.y, position.y);
                 position.0 = target;
                 // Update moving status
-                if (min..=max).contains(&movement_state.dest.x) {
+                if (min_x..=max_x).contains(&movement_state.dest.x)
+                    && (min_y..max_y).contains(&movement_state.dest.y)
+                {
                     movement_state.moving = false;
+                    position.0 = movement_state.dest;
                 } else {
                     any_moving.set(true).ok();
                 }

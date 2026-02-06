@@ -9,6 +9,12 @@ use std::collections::HashMap;
 pub struct Map {
     pub objects: HashMap<u32, Entity>,
 }
+impl Map {
+    /// Useful method for clearing the map when reverting or loading a new map.
+    pub fn clear(&mut self) {
+        self.objects.clear();
+    }
+}
 
 #[derive(Resource, Debug, Clone, Copy, Deref, DerefMut)]
 pub struct CurrentSession(pub SessionId);
@@ -17,11 +23,6 @@ impl Default for CurrentSession {
         Self(SessionId::MAX)
     }
 }
-
-/// Whether the map has completed communicating with the server, playing animation, and therefore
-/// can accept user input.
-#[derive(Resource, Default, Debug, Clone, Copy, Deref, DerefMut)]
-pub struct MapAcceptsInput(pub bool);
 
 /// Stores the corresponding errors from `infr_transfer::ServerError`.
 #[derive(Message, Debug, Clone)]
@@ -37,6 +38,7 @@ pub struct LoadMap {
 pub(crate) fn start_load_map(
     mut reader: MessageReader<LoadMap>,
     mut commands: Commands,
+    mut map_state: ResMut<NextState<crate::MapState>>,
 ) -> Result<()> {
     for message in reader.read() {
         let Some(path) = config::CONFIG.find_level(&message.pack, &message.name) else {
@@ -48,6 +50,7 @@ pub(crate) fn start_load_map(
         };
         let request = make_post_request("session/load", &transfer::LoadSessionRequest { path })?;
         commands.spawn(request).observe(observe_load_map);
+        map_state.set(crate::MapState::Loading);
     }
     Ok(())
 }
@@ -97,32 +100,46 @@ fn observe_level_map(
     event: On<ResponseString>,
     mut commands: Commands,
     mut writer: MessageWriter<LevelError>,
+    mut client_map: ResMut<crate::Map>,
     session: Res<CurrentSession>,
 ) -> Result<()> {
     let map = parse_response_and_report!(transfer::Map, writer, event);
+    client_map.clear();
     info!("Acquired level map: {map:?}");
     for object in map.0.into_iter() {
-        commands.spawn((
-            crate::Object {
-                id: object.id,
-                session_id: session.0,
-            },
-            crate::ObjectState {
-                direction: object.direction,
-                nature: object.nature,
-            },
-            crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
-            crate::ObjectGroups(object.groups),
-        ));
+        let entity = commands
+            .spawn((
+                crate::Object {
+                    id: object.id,
+                    session_id: session.0,
+                },
+                crate::ObjectState {
+                    direction: object.direction,
+                    nature: object.nature,
+                },
+                crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
+                crate::ObjectGroups(object.groups),
+            ))
+            .id();
+        client_map.objects.insert(object.id, entity);
     }
     commands.entity(event.entity).despawn();
     Ok(())
 }
 
+pub(crate) fn finish_load_map(
+    q_request: Query<(), With<HttpRequest>>,
+    mut map_state: ResMut<NextState<crate::MapState>>,
+) {
+    if q_request.iter().next().is_none() {
+        map_state.set(crate::MapState::Free);
+    }
+}
+
 pub(crate) fn refresh_session(mut commands: Commands, session: Res<CurrentSession>) -> Result<()> {
     if session.0 != u32::MAX {
         commands
-            .spawn(make_post_request("/session/refresh", &session.0)?)
+            .spawn(make_post_request("session/refresh", &session.0)?)
             .observe(observe_discard_response);
     }
     Ok(())

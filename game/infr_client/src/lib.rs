@@ -1,10 +1,14 @@
 pub mod config;
-mod map;
-mod object;
 pub mod prelude;
 
+mod map;
 pub use map::*;
+
+mod object;
 pub use object::*;
+
+mod step;
+pub use step::*;
 
 use bevy::{prelude::*, time::common_conditions::on_timer};
 
@@ -14,6 +18,18 @@ pub enum GlobalState {
     Game,
     Menu,
 }
+#[derive(States, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MapState {
+    #[default]
+    /// Loading map contents.
+    Loading,
+    /// Playing movement animations.
+    Animating,
+    /// Between animations, waiting for the next step.
+    PendingStep,
+    /// Player can only input in this state.
+    Free,
+}
 
 pub struct InfrClientPlugin;
 
@@ -22,9 +38,13 @@ impl Plugin for InfrClientPlugin {
         app.init_resource::<PositionCenter>()
             .init_resource::<CurrentSession>()
             .init_resource::<AnyObjectMoving>()
-            .init_resource::<Map>();
-        app.init_state::<GlobalState>();
-        app.add_message::<LoadMap>().add_message::<LevelError>();
+            .init_resource::<Map>()
+            .init_resource::<CurrentMovements>()
+            .init_resource::<CurrentObjects>();
+        app.init_state::<GlobalState>().init_state::<MapState>();
+        app.add_message::<LoadMap>()
+            .add_message::<LevelError>()
+            .add_message::<PlayerDirection>();
         app.add_systems(Update, (convert_position,));
         app.add_systems(PreUpdate, (start_load_map, remove_past_objects));
         app.add_systems(
@@ -37,5 +57,26 @@ impl Plugin for InfrClientPlugin {
                 config::CONFIG.server.refresh_interval,
             ))),
         );
+        app.add_systems(
+            FixedPostUpdate,
+            (finish_load_map,).run_if(in_state(MapState::Loading)),
+        );
+        app.add_systems(
+            FixedPreUpdate,
+            (listen_keyboard_input,).run_if(in_state(MapState::Free)),
+        );
+        app.add_systems(
+            FixedUpdate,
+            (read_player_input,).run_if(in_state(MapState::Free)),
+        );
+        app.add_systems(
+            FixedUpdate,
+            (finish_animations,).run_if(in_state(MapState::Animating)),
+        );
+        app.add_systems(
+            OnEnter::<MapState>(MapState::PendingStep),
+            send_no_player_input_step,
+        );
+        app.add_observer(observe_movement_event);
     }
 }

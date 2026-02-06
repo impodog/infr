@@ -113,7 +113,7 @@ impl Scripts {
 
         {
             let table = lua.create_table()?;
-            module.set(
+            table.set(
                 "move",
                 lua.create_function(
                     |_,
