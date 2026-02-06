@@ -27,7 +27,7 @@ pub struct ObjectState {
 pub struct ObjectGroups(pub Vec<String>);
 
 /// Stores the center and extent of all positions
-#[derive(Resource, Default, Debug, Clone)]
+#[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]
 pub struct PositionCenter {
     pub center: Vec2,
     /// This is half of the length and width of all objects.
@@ -52,7 +52,7 @@ pub(crate) fn convert_position(
         }
     }
     let center = Vec2::new((max_x + min_x) * 0.5, (max_y + min_y) * 0.5);
-    let extent = Vec2::new((max_x - min_x) * 0.5, (max_y - min_y) * 0.5);
+    let extent = Vec2::new((max_x - min_x + 1.0) * 0.5, (max_y - min_y + 1.0) * 0.5);
     position_center.center = center;
     position_center.extent = extent;
 
@@ -111,4 +111,16 @@ pub(crate) fn move_object(
             }
         });
     any_object_moving.0 = *any_moving.get_or_init(|| false);
+}
+
+pub(crate) fn remove_past_objects(
+    q_object: Query<(Entity, &Object)>,
+    session: Res<crate::CurrentSession>,
+    mut commands: Commands,
+) {
+    for (entity, object) in q_object.iter() {
+        if object.session_id != session.0 {
+            commands.entity(entity).despawn();
+        }
+    }
 }

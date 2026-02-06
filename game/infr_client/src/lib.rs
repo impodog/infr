@@ -26,7 +26,7 @@ impl Plugin for InfrClientPlugin {
         app.init_state::<GlobalState>();
         app.add_message::<LoadMap>().add_message::<LevelError>();
         app.add_systems(Update, (convert_position,));
-        app.add_systems(PreUpdate, (start_load_map,));
+        app.add_systems(PreUpdate, (start_load_map, remove_past_objects));
         app.add_systems(
             FixedUpdate,
             (move_object,).run_if(in_state(GlobalState::Game)),
