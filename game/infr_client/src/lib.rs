@@ -21,8 +21,10 @@ impl Plugin for InfrClientPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PositionCenter>()
             .init_resource::<CurrentSession>()
-            .init_resource::<AnyObjectMoving>();
+            .init_resource::<AnyObjectMoving>()
+            .init_resource::<Map>();
         app.init_state::<GlobalState>();
+        app.add_message::<LoadMap>().add_message::<LevelError>();
         app.add_systems(Update, (convert_position,));
         app.add_systems(PreUpdate, (start_load_map,));
         app.add_systems(

@@ -8,6 +8,7 @@ bevy = { version = "0.18.0", default-features = false, features = [
     "2d",
     "wayland",
     "dynamic_linking",
+    "debug",
 ] }
 bevy_ehttp = "0.7.0"
 infr_client = { path = "../infr_client" }

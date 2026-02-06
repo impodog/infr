@@ -15,7 +15,7 @@ impl Default for StartupConfig {
         Self {
             address: std::net::SocketAddr::new("127.0.0.1".parse().unwrap(), 4321),
             refresh_interval: 30,
-            script_config: PathBuf::from("scripts/config.toml"),
+            script_config: PathBuf::from("assets/scripts/config.toml"),
         }
     }
 }
@@ -62,6 +62,7 @@ impl ScriptConfig {
             for path in &self.included_paths {
                 let mut script_path = path.clone();
                 script_path.push(format!("{}.lua", name));
+                println!("Testing {script_path:?}");
                 if script_path.exists() {
                     return Some(script_path);
                 }

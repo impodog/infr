@@ -22,6 +22,10 @@ pub struct ObjectState {
     pub nature: String,
 }
 
+/// Stores all the groups that the object is in, provided by the server.
+#[derive(Component, Default, Debug, Clone, Deref, DerefMut)]
+pub struct ObjectGroups(pub Vec<String>);
+
 /// Stores the center and extent of all positions
 #[derive(Resource, Default, Debug, Clone)]
 pub struct PositionCenter {

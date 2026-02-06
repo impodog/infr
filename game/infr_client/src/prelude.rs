@@ -2,12 +2,33 @@ pub use crate::config;
 pub use crate::map::LevelError;
 pub use infr_transfer::{self as transfer, Coord, ObjectId, ServerError, SessionId};
 
-pub fn make_request<T: serde::Serialize>(
+pub fn url_to(router: &str) -> String {
+    if config::CONFIG.server.address.ends_with('/') {
+        format!("http://{}{}", config::CONFIG.server.address, router)
+    } else {
+        format!("http://{}/{}", config::CONFIG.server.address, router)
+    }
+}
+
+pub fn make_post_request<T: serde::Serialize>(
+    router: &str,
     data: &T,
 ) -> bevy::prelude::Result<bevy_ehttp::HttpRequest> {
     use bevy_ehttp::prelude::*;
     let body = serde_json::to_string(&data)?;
-    let mut request = HttpRequest::post(&config::CONFIG.server.address, body.into_bytes());
+    let mut request = HttpRequest::post(&url_to(router), body.into_bytes());
+    request.headers.insert("Content-Type", "application/json");
+    Ok(request)
+}
+
+pub fn make_get_request<T: serde::Serialize>(
+    router: &str,
+    data: &T,
+) -> bevy::prelude::Result<bevy_ehttp::HttpRequest> {
+    use bevy_ehttp::prelude::*;
+    let body = serde_json::to_string(&data)?;
+    let mut request = HttpRequest::get(url_to(router));
+    request.body = body.into();
     request.headers.insert("Content-Type", "application/json");
     Ok(request)
 }

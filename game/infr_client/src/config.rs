@@ -77,12 +77,14 @@ impl Default for DisplayConfig {
 }
 
 #[derive(Deserialize, Debug, Clone, Default)]
-pub struct LevelPack(pub Vec<PathBuf>);
+pub struct LevelPack {
+    pub levels: Vec<PathBuf>,
+}
 path_wrapper!(LevelPackWrapper, LevelPack);
 
 impl LevelPackWrapper {
     pub fn find(&self, name: &str) -> Option<PathBuf> {
-        for path in self.0.0.iter() {
+        for path in self.0.levels.iter() {
             let target = self.1.join(path).join(name).with_extension("toml");
             if target.exists() {
                 return Some(target);

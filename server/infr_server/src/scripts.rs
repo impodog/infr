@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use crate::prelude::*;
 
 pub(crate) fn route_scripts() -> Router<AppState> {
@@ -16,12 +14,7 @@ async fn add_script(state: State<AppState>, req: Json<transfer::AddScriptRequest
     if !path.exists() {
         return Err(transfer::ServerError::BadRequest(format!("File not found: {path:?}")).into());
     }
-    state
-        .0
-        .scripts
-        .write()
-        .unwrap()
-        .add(name, PathBuf::from(path));
+    state.0.scripts.write().unwrap().add(name, path);
     Ok("Script added successfully")
 }
 

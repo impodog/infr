@@ -5,7 +5,7 @@ use bevy_ehttp::prelude::*;
 use std::collections::HashMap;
 
 /// Stores the current map provided by the server.
-#[derive(Resource, Debug)]
+#[derive(Resource, Debug, Default)]
 pub struct Map {
     pub objects: HashMap<u32, Entity>,
 }
@@ -46,7 +46,7 @@ pub(crate) fn start_load_map(
             );
             continue;
         };
-        let request = make_request(&transfer::LoadSessionRequest { path })?;
+        let request = make_post_request("session/load", &transfer::LoadSessionRequest { path })?;
         commands.spawn(request).observe(observe_load_map);
     }
     Ok(())
@@ -60,17 +60,69 @@ fn observe_load_map(
     mut map: ResMut<Map>,
 ) -> Result<()> {
     let session_id = parse_response_and_report!(SessionId, writer, event);
+    info!("Loaded session id: {session_id}");
     **current_session = session_id;
-    commands.entity(event.entity).despawn();
     map.objects.clear();
-    // TODO: Read level data.
+
+    // Read level data.
+    commands
+        .spawn(make_get_request("session/meta", &session_id)?)
+        .observe(observe_level_meta);
+    commands
+        .spawn(make_get_request("session/map", &session_id)?)
+        .observe(observe_level_map);
+
+    commands.entity(event.entity).despawn();
+
+    Ok(())
+}
+
+/// Stores the metadata that the level provides.
+#[derive(Resource, Debug, Deref, DerefMut)]
+pub struct LevelMetadata(pub transfer::LevelMetadata);
+
+fn observe_level_meta(
+    event: On<ResponseString>,
+    mut commands: Commands,
+    mut writer: MessageWriter<LevelError>,
+) -> Result<()> {
+    let meta = parse_response_and_report!(transfer::LevelMetadata, writer, event);
+    info!("Acquired level metadata: {meta:?}");
+    commands.insert_resource(LevelMetadata(meta));
+    commands.entity(event.entity).despawn();
+    Ok(())
+}
+
+fn observe_level_map(
+    event: On<ResponseString>,
+    mut commands: Commands,
+    mut writer: MessageWriter<LevelError>,
+    session: Res<CurrentSession>,
+) -> Result<()> {
+    let map = parse_response_and_report!(transfer::Map, writer, event);
+    info!("Acquired level map: {map:?}");
+    for object in map.0.into_iter() {
+        commands.spawn((
+            crate::Object {
+                id: object.id,
+                session_id: session.0,
+            },
+            crate::ObjectState {
+                direction: object.direction,
+                nature: object.nature,
+            },
+            crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
+            crate::ObjectGroups(object.groups),
+        ));
+    }
+    commands.entity(event.entity).despawn();
     Ok(())
 }
 
 pub(crate) fn refresh_session(mut commands: Commands, session: Res<CurrentSession>) -> Result<()> {
     if session.0 != u32::MAX {
         commands
-            .spawn(make_request(&session.0)?)
+            .spawn(make_post_request("/session/refresh", &session.0)?)
             .observe(observe_discard_response);
     }
     Ok(())
