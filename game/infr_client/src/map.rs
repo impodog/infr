@@ -81,7 +81,7 @@ fn observe_load_map(
 }
 
 /// Stores the metadata that the level provides.
-#[derive(Resource, Debug, Deref, DerefMut)]
+#[derive(Resource, Debug, Deref, DerefMut, Default)]
 pub struct LevelMetadata(pub transfer::LevelMetadata);
 
 fn observe_level_meta(

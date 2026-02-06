@@ -47,6 +47,8 @@ pub struct Object {
     pub groups: Vec<String>,
     /// The main group that the object is in, this is used for selecting the right sprite.
     pub nature: String,
+    /// Corresponds to flags stored in the server.
+    pub flags: Vec<String>,
 }
 
 /// Only used in server outputs, corresponds to `infr_layout::Manner`.

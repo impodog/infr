@@ -6,7 +6,6 @@ infr.register_feature({
             return { {
                 manner = { kind = "Swipe", direction = signal.direction },
                 object = object,
-                required_by = infr.UNUSED_ID,
                 dest = dest,
                 forbid = false,
             }, }

@@ -8,6 +8,8 @@ pub struct LevelObject {
     pub direction: Direction,
     pub coord: Coord,
     pub group: String,
+    #[serde(default)]
+    pub flags: Vec<String>,
 }
 
 /// The entry struct for parsing level configuration files.
@@ -21,10 +23,16 @@ pub struct Level {
 }
 
 /// The data that needs to be transferred throughout the program unmodified.
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct LevelMetadata {
     #[serde(default = "default_title")]
     pub title: String,
+    /// The background sprite to use.
+    #[serde(default)]
+    pub background: Option<String>,
+    /// Chooses a color tinting style for the level.
+    #[serde(default)]
+    pub tinting: Option<String>,
 }
 
 fn default_title() -> String {

@@ -110,6 +110,7 @@ pub struct ObjectDesc {
     pub direction: Option<Direction>,
     pub kind: ObjectKind,
     pub group: Vec<String>,
+    pub flags: Vec<String>,
 }
 impl IntoLua for ObjectDesc {
     fn into_lua(self, lua: &Lua) -> Result<LuaValue, LuaError> {
@@ -118,6 +119,7 @@ impl IntoLua for ObjectDesc {
         table.set("direction", self.direction)?;
         table.set("kind", self.kind)?;
         table.set("group", self.group)?;
+        table.set("flags", self.flags)?;
         Ok(LuaValue::Table(table))
     }
 }
@@ -131,11 +133,13 @@ impl FromLua for ObjectDesc {
                 let direction = table.get("direction")?;
                 let kind = table.get("kind")?;
                 let group = table.get("group")?;
+                let flags = table.get("flags").unwrap_or_default();
                 Ok(ObjectDesc {
                     id: crate::consts::UNUSED_ID,
                     direction,
                     kind,
                     group,
+                    flags,
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
@@ -158,6 +162,7 @@ impl Map {
             direction: object.direction,
             kind: object.kind,
             group: group.clone(),
+            flags: object.flags.clone(),
         })
     }
 }

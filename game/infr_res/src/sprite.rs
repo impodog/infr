@@ -16,9 +16,9 @@ pub(crate) struct AnimationClock {
 
 impl Animation {
     /// Creates an animation with default tile size.
-    pub fn new(name: String) -> Self {
+    pub fn new(name: impl Into<String>) -> Self {
         Self {
-            name,
+            name: name.into(),
             size: Vec2::new(
                 config::CONFIG.display.tile_size.0 as f32,
                 config::CONFIG.display.tile_size.1 as f32,
@@ -74,7 +74,15 @@ fn convert_to_sprite(
 }
 
 pub(crate) fn modify_animation(
-    mut query: Query<(&Animation, &mut Sprite, &mut AnimationClock), Changed<Animation>>,
+    mut query: Query<
+        (
+            &Animation,
+            &mut Sprite,
+            &mut AnimationClock,
+            &mut Visibility,
+        ),
+        Changed<Animation>,
+    >,
     asset_server: Res<AssetServer>,
     mut layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut atlas_handles: ResMut<AnimationAtlasHandles>,
@@ -96,7 +104,12 @@ pub(crate) fn modify_animation(
         .unwrap_or_default();
     query
         .iter_mut()
-        .for_each(|(animation, mut sprite, mut clock)| {
+        .for_each(|(animation, mut sprite, mut clock, mut visibility)| {
+            if animation.name.is_empty() {
+                *visibility = Visibility::Hidden;
+            } else {
+                *visibility = Visibility::Inherited;
+            }
             let Some(config) = config::CONFIG.sprites.map.get(&animation.name) else {
                 *sprite = default_sprite.clone();
                 return;
@@ -137,9 +150,6 @@ pub(crate) fn tick_animation(
 }
 
 macro_rules! try_return {
-    ($pat: expr, $($args: expr)+) => {
-        try_return!(format!($pat, $($args,)+))
-    };
     ($name: expr) => {{
         let name = $name;
         if config::CONFIG.sprites.map.get(&name).is_some() {
@@ -149,24 +159,40 @@ macro_rules! try_return {
 }
 
 fn select_object_animation_helper(nature: &str, direction: transfer::Direction) -> String {
-    match direction {
-        transfer::Direction::RIGHT => {
-            try_return!("{}Right", nature);
+    let (nature, suffix): (&str, &'static [&'static str]) = if let Some(first) =
+        nature.chars().next()
+        && !first.is_alphanumeric()
+    {
+        let rest = &nature[first.len_utf8()..];
+        match first {
+            '$' => (rest, &["Ins"]),
+            '@' => (rest, &["Sym"]),
+            '%' => (rest, &["Sym", "Ins"]),
+            '=' => (rest, &["Ops", "Sym"]),
+            _ => {
+                error!("Unknown nature prefix: {first}");
+                (rest, &[])
+            }
         }
-        transfer::Direction::UP => {
-            try_return!("{}Up", nature);
-        }
-        transfer::Direction::LEFT => {
-            try_return!("{}Left", nature);
-        }
-        transfer::Direction::DOWN => {
-            try_return!("{}Down", nature);
-        }
-        _ => {
-            try_return!("{}Unknown", nature);
+    } else {
+        (nature, &[])
+    };
+    let dir = match direction {
+        transfer::Direction::RIGHT => "Right",
+        transfer::Direction::UP => "Up",
+        transfer::Direction::LEFT => "Left",
+        transfer::Direction::DOWN => "Down",
+        _ => "Unknown",
+    };
+    for suffix in suffix
+        .iter()
+        .map(std::ops::Deref::deref)
+        .chain(std::iter::once(""))
+    {
+        for direction in [dir, ""] {
+            try_return!(format!("{}{}{}", nature, suffix, direction));
         }
     }
-    try_return!(nature.to_owned());
     "Empty".to_owned()
 }
 

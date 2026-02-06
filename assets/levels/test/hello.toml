@@ -2,11 +2,13 @@ requirements = ["basic"]
 
 [meta]
 title = "Test Level"
+tinting = "Red"
 
 [[objects]]
 direction = 1
 group = "$Empty"
 coord = [0, 0]
+flags = ["TestFlag"]
 
 [[objects]]
 direction = 1

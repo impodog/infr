@@ -114,6 +114,8 @@ pub struct Object {
     /// For Instance/Structure/Symbol, this is the name of the group it belongs to or represents.
     /// For Operator, this is the type of the operator.
     pub group: String,
+    /// Additional flags for special cases.
+    pub flags: Vec<String>,
 }
 
 /// Atomic counter for generating unique object IDs.
@@ -128,12 +130,19 @@ impl Object {
             direction: None,
             kind,
             group,
+            flags: Default::default(),
         }
     }
 
     /// Sets the direction of the object.
     pub fn with_direction(mut self, direction: Direction) -> Self {
         self.direction = Some(direction);
+        self
+    }
+
+    /// Sets the flags of the object.
+    pub fn with_flags(mut self, flags: Vec<String>) -> Self {
+        self.flags = flags;
         self
     }
 

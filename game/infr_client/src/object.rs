@@ -35,7 +35,7 @@ pub struct PositionCenter {
 }
 
 pub(crate) fn convert_position(
-    mut q_position: Query<(&mut Transform, &Object, &Position)>,
+    mut q_position: Query<(&mut Transform, Option<&Object>, &Position)>,
     session_id: Res<crate::CurrentSession>,
     mut position_center: ResMut<PositionCenter>,
 ) {
@@ -44,7 +44,7 @@ pub(crate) fn convert_position(
     let mut max_x = f32::NEG_INFINITY;
     let mut max_y = f32::NEG_INFINITY;
     for (_, object, position) in q_position.iter() {
-        if object.session_id == **session_id {
+        if object.is_some_and(|object| object.session_id == **session_id) {
             min_x = min_x.min(position.x);
             max_x = max_x.max(position.x);
             min_y = min_y.min(position.y);
@@ -116,8 +116,15 @@ pub(crate) fn move_object(
         .par_iter_mut()
         .for_each(|(mut position, mut movement_state)| {
             if movement_state.moving {
+                let delta = movement_state.dest - **position;
                 let direction = (movement_state.dest - **position).normalize_or_zero();
-                let target = **position + direction * movement_state.speed * time.delta_secs();
+                let speed = movement_state.speed
+                    * if direction.length() > 0.0 {
+                        (delta.length() / direction.length() * 1.5).clamp(1.0, 1.5)
+                    } else {
+                        1.0
+                    };
+                let target = **position + direction * speed * time.delta_secs();
                 let (min_x, max_x) = min_max(target.x, position.x);
                 let (min_y, max_y) = min_max(target.y, position.y);
                 position.0 = target;

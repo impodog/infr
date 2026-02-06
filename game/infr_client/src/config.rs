@@ -135,7 +135,7 @@ impl Default for ClientConfig {
         Self {
             framerate: 60,
             frame_duration: std::time::Duration::from_secs_f32(1.0 / 60.0),
-            movement_velocity: 4.0,
+            movement_velocity: 5.0,
             teleport_velocity: 20.0,
         }
     }
@@ -174,6 +174,9 @@ pub struct SpriteConfig {
     /// Map from aliases to the actual sprite.
     #[serde(default)]
     pub map: HashMap<String, Vec<SpriteAtlas>>,
+    /// Defines tinting style aliases.
+    #[serde(default)]
+    pub tinting: HashMap<String, Color>,
 }
 
 impl SpriteConfig {
@@ -211,9 +214,9 @@ impl SpriteConfig {
         }
         for sub_path in config.include.drain(..) {
             let sub_path = base_path.join(&sub_path);
-            config
-                .map
-                .extend(SpriteConfig::load(sub_path).map.into_iter());
+            let SpriteConfig { map, tinting, .. } = SpriteConfig::load(sub_path);
+            config.map.extend(map.into_iter());
+            config.tinting.extend(tinting.into_iter())
         }
         config
     }

@@ -31,15 +31,12 @@ pub struct PixelCamera(pub Handle<Image>);
 #[derive(Component)]
 pub struct MainCamera;
 
+/// Marks the sprite to render to.
 #[derive(Component)]
 #[require(Sprite)]
 pub struct PixelRenderSprite;
 
-pub(crate) fn setup_camera(
-    mut commands: Commands,
-    resolution: Res<VirtualResolution>,
-    mut images: ResMut<Assets<Image>>,
-) {
+fn make_window_texture(images: &mut Assets<Image>) -> Handle<Image> {
     // Sets the maximum size for rendering pixel graphics.
     let size = Extent3d {
         width: config::CONFIG.display.window_size.0,
@@ -64,8 +61,15 @@ pub(crate) fn setup_camera(
     };
     // Fill image.data with zeroes
     texture.resize(size);
-    let texture = images.add(texture);
+    images.add(texture)
+}
 
+pub(crate) fn setup_camera(
+    mut commands: Commands,
+    resolution: Res<VirtualResolution>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let texture = make_window_texture(&mut images);
     // The camera to output to a texture, which creates a pixel effect.
     commands.spawn((
         PixelCamera(texture.clone()),
@@ -150,6 +154,24 @@ pub(crate) fn update_resolution(
         };
         resolution.x = x as u32;
         resolution.y = y as u32;
-        info!("Changed resolution to ({}, {})", resolution.x, resolution.y);
     }
+}
+
+pub(crate) fn update_color_tinting(
+    meta: Res<infr_client::LevelMetadata>,
+    mut q_sprite: Query<&mut Sprite, With<PixelRenderSprite>>,
+) -> Result<()> {
+    if meta.is_changed()
+        && let Some(ref tinting) = meta.tinting
+    {
+        let mut sprite = q_sprite.single_mut()?;
+        if let Some(color) = config::CONFIG.sprites.tinting.get(tinting) {
+            info!("Set color tint: {color:?}");
+            sprite.color = *color;
+        } else {
+            error!("Unknown tinting scheme: {tinting}");
+            sprite.color = Default::default();
+        }
+    }
+    Ok(())
 }

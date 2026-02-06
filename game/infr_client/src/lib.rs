@@ -37,6 +37,7 @@ impl Plugin for InfrClientPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PositionCenter>()
             .init_resource::<CurrentSession>()
+            .init_resource::<LevelMetadata>()
             .init_resource::<AnyObjectMoving>()
             .init_resource::<Map>()
             .init_resource::<CurrentMovements>()
