@@ -23,10 +23,8 @@ pub enum MapState {
     #[default]
     /// Loading map contents.
     Loading,
-    /// Playing movement animations.
-    Animating,
-    /// Between animations, waiting for the next step.
-    PendingStep,
+    /// When requesting and animating object steps.
+    Stepping,
     /// Player can only input in this state.
     Free,
 }
@@ -41,7 +39,8 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<AnyObjectMoving>()
             .init_resource::<Map>()
             .init_resource::<CurrentMovements>()
-            .init_resource::<CurrentObjects>();
+            .init_resource::<CurrentObjects>()
+            .init_resource::<CurrentRound>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()
@@ -72,11 +71,9 @@ impl Plugin for InfrClientPlugin {
         );
         app.add_systems(
             FixedUpdate,
-            (finish_animations,).run_if(in_state(MapState::Animating)),
-        );
-        app.add_systems(
-            OnEnter::<MapState>(MapState::PendingStep),
-            send_no_player_input_step,
+            (send_animations, finish_animations)
+                .chain()
+                .run_if(in_state(MapState::Stepping)),
         );
         app.add_observer(observe_movement_event);
     }

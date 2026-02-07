@@ -120,6 +120,8 @@ impl Layout {
         self.map.check_contradiction()?;
         self.map.check_overlap()?;
         self.remove_queue.clear();
+        self.listen_coord.clear();
+        self.listen_object.clear();
         Ok(relevant_groups)
     }
 
@@ -342,6 +344,7 @@ impl Layout {
             }
             index += 1;
         }
+        println!("Movequeue: {:?}", self.move_queue);
 
         // Test if there is any objects that move two different ways,
         // and remove duplicate moves.

@@ -19,3 +19,8 @@ coord = [5, 0]
 direction = 1
 group = "$Stop"
 coord = [3, 0]
+
+[[objects]]
+direction = 1
+group = "$Push"
+coord = [5, 3]

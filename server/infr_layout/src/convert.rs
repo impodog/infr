@@ -7,20 +7,20 @@ impl IntoLua for crate::Manner {
         let table = lua.create_table()?;
         match self {
             Self::Placeholder => {
-                table.set("type", "Placeholder")?;
+                table.set("kind", "Placeholder")?;
             }
             Self::Swipe(direction) => {
-                table.set("type", "Swipe")?;
+                table.set("kind", "Swipe")?;
                 table.set("direction", direction)?;
             }
             Self::Remove => {
-                table.set("type", "Remove")?;
+                table.set("kind", "Remove")?;
             }
             Self::Teleport => {
-                table.set("type", "Teleport")?;
+                table.set("kind", "Teleport")?;
             }
             Self::Add(object_desc) => {
-                table.set("type", "Add")?;
+                table.set("kind", "Add")?;
                 table.set("object", object_desc)?;
             }
         }

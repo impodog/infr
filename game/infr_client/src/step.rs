@@ -37,6 +37,7 @@ pub(crate) fn read_player_input(
     mut reader: MessageReader<PlayerDirection>,
     mut commands: Commands,
     mut map_state: ResMut<NextState<crate::MapState>>,
+    mut current_round: ResMut<crate::CurrentRound>,
     session: Res<crate::CurrentSession>,
 ) -> Result<()> {
     let Some(direction) = reader.read().last() else {
@@ -53,7 +54,9 @@ pub(crate) fn read_player_input(
             },
         )?)
         .observe(observe_step);
-    map_state.set(crate::MapState::Animating);
+    map_state.set(crate::MapState::Stepping);
+    current_round.actual_round = 0;
+    current_round.animation_round = 0;
     Ok(())
 }
 
@@ -66,30 +69,32 @@ pub struct CurrentMovements(pub HashMap<u32, transfer::Movement>);
 pub struct CurrentObjects(pub HashMap<u32, transfer::Object>);
 
 /// Stores the round number of each step, this will be set to 0 each time player inputs.
-#[derive(Resource, Debug, Clone, Copy, Default, Deref, DerefMut)]
-pub struct CurrentRound(pub usize);
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct CurrentRound {
+    pub actual_round: usize,
+    pub animation_round: usize,
+}
 
 fn observe_step(
     event: On<ResponseString>,
     mut commands: Commands,
     mut writer: MessageWriter<LevelError>,
-    mut map_state: ResMut<NextState<crate::MapState>>,
     mut current_movements: ResMut<CurrentMovements>,
+    mut current_round: ResMut<CurrentRound>,
     session: Res<crate::CurrentSession>,
 ) -> Result<()> {
     let transfer::SendStepResponse { movements } =
         parse_response_and_report!(transfer::SendStepResponse, writer, event);
-    commands.entity(event.entity).despawn();
 
     info!("Received movements: {:?}", movements);
 
     // Return to free if no more movements.
     if movements.is_empty() {
-        map_state.set(crate::MapState::Free);
+        current_movements.0.clear();
+        // This is for the animation's turn to end the whole process.
+        current_round.actual_round += 1;
         return Ok(());
     }
-
-    map_state.set(crate::MapState::Animating);
 
     current_movements.0 = movements
         .into_iter()
@@ -99,6 +104,7 @@ fn observe_step(
     commands
         .spawn(make_get_request("session/map", &session.0)?)
         .observe(observe_load_map_when_moving);
+    commands.entity(event.entity).despawn();
 
     Ok(())
 }
@@ -109,20 +115,43 @@ fn observe_load_map_when_moving(
     mut commands: Commands,
     mut writer: MessageWriter<LevelError>,
     mut current_objects: ResMut<CurrentObjects>,
-    current_movements: Res<CurrentMovements>,
-    session: Res<crate::CurrentSession>,
-    mut map: ResMut<crate::Map>,
-    mut q_object: Query<(&mut crate::ObjectState, &mut crate::ObjectGroups)>,
-    mut any_moving: ResMut<crate::AnyObjectMoving>,
+    mut current_round: ResMut<CurrentRound>,
 ) -> Result<()> {
     current_objects.0 = parse_response_and_report!(transfer::Map, writer, event)
         .0
         .into_iter()
         .map(|object| (object.id, object))
         .collect::<HashMap<_, _>>();
-    commands.entity(event.entity).despawn();
 
+    // Set flag for pending animations.
+    current_round.actual_round += 1;
+
+    commands.entity(event.entity).despawn();
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn send_animations(
+    mut commands: Commands,
+    current_objects: Res<CurrentObjects>,
+    current_movements: Res<CurrentMovements>,
+    session: Res<crate::CurrentSession>,
+    mut map: ResMut<crate::Map>,
+    mut q_object: Query<(&mut crate::ObjectState, &mut crate::ObjectGroups)>,
+    mut any_moving: ResMut<crate::AnyObjectMoving>,
+    mut current_round: ResMut<crate::CurrentRound>,
+    mut map_state: ResMut<NextState<crate::MapState>>,
+) -> Result<()> {
     use transfer::MoveManner;
+
+    // Test if there are pending animations.
+    if current_round.actual_round == current_round.animation_round {
+        return Ok(());
+    }
+    if current_movements.is_empty() {
+        map_state.set(crate::MapState::Free);
+        return Ok(());
+    }
 
     for (id, movement) in current_movements.iter() {
         let Some(object) = current_objects.get(id) else {
@@ -186,35 +215,34 @@ fn observe_load_map_when_moving(
         }
     }
 
+    current_round.animation_round += 1;
     any_moving.0 = true;
 
     Ok(())
 }
 
 pub(crate) fn finish_animations(
-    mut map_state: ResMut<NextState<crate::MapState>>,
-    any_moving: Res<crate::AnyObjectMoving>,
-    q_request: Query<(), With<HttpRequest>>,
-) {
-    if !any_moving.0 && q_request.iter().next().is_none() {
-        map_state.set(crate::MapState::PendingStep);
-    }
-}
-
-pub(crate) fn send_no_player_input_step(
     mut commands: Commands,
     session: Res<crate::CurrentSession>,
-    mut map_state: ResMut<NextState<crate::MapState>>,
+    any_moving: Res<crate::AnyObjectMoving>,
+    q_request: Query<(), With<HttpRequest>>,
+    current_round: Res<CurrentRound>,
 ) -> Result<()> {
-    commands
-        .spawn(make_post_request(
-            "session/step",
-            &transfer::SendStepRequest {
-                session_id: session.0,
-                direction: Default::default(),
-            },
-        )?)
-        .observe(observe_step);
-    map_state.set(crate::MapState::Animating);
+    if !any_moving.0
+        && q_request.iter().next().is_none()
+        && current_round.actual_round == current_round.animation_round
+        // Skip the first round --- provides input to the user in another function.
+        && current_round.actual_round != 0
+    {
+        commands
+            .spawn(make_post_request(
+                "session/step",
+                &transfer::SendStepRequest {
+                    session_id: session.0,
+                    direction: Default::default(),
+                },
+            )?)
+            .observe(observe_step);
+    }
     Ok(())
 }

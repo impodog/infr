@@ -278,38 +278,56 @@ async fn step(
     log::info!("Stepping session {session_id}");
 
     let session_ref = state.0.get_session(session_id)?;
-    let mut session = session_ref.lock().unwrap();
 
-    let direction = Option::<Direction>::from(direction);
-    // This movement directly responds to player input, meaning that a new set of rounds begins.
-    if direction.is_some() {
-        if !session.can_input {
-            return Err(transfer::ServerError::InputRefused.into());
-        }
-        // round clearing is done when can_input is set to true
-        session.input_count += 1;
-    } else {
-        // If the map should take an input, stepping call is fused to return empty movements.
-        if session.can_input {
-            return Ok(transfer::SendStepResponse {
-                movements: Vec::new(),
+    let movements = {
+        let signal = {
+            let mut session = session_ref.lock().unwrap();
+            let direction = Option::<Direction>::from(direction);
+            // This movement directly responds to player input, meaning that a new set of rounds begins.
+            if direction.is_some() {
+                if !session.can_input {
+                    return Err(transfer::ServerError::InputRefused.into());
+                }
+                // round clearing is done when can_input is set to true
+                session.input_count += 1;
+            } else {
+                // If the map should take an input, stepping call is fused to return empty movements.
+                if session.can_input {
+                    return Ok(transfer::SendStepResponse {
+                        movements: Vec::new(),
+                    }
+                    .into());
+                }
             }
-            .into());
-        }
-    }
-    let signal = Signal {
-        direction,
-        round: session.round,
-    };
-    let movements = session
-        .layout
-        .step(signal, &state.lua, &state.scripts.read().unwrap())
-        .map_err(|err| session.convert_error(err))?
-        .into_iter()
-        // Here all placeholders are filtered.
-        .filter(|movement| !matches!(movement.manner, Manner::Placeholder))
-        .collect::<Vec<_>>();
 
+            Signal {
+                direction,
+                round: session.round,
+            }
+        };
+
+        let session_ref = session_ref.clone();
+        let task = async move {
+            let mut session = session_ref.lock().unwrap();
+            Result::<Vec<Movement>, transfer::ServerError>::Ok(
+                session
+                    .layout
+                    .step(signal, &state.lua, &state.scripts.read().unwrap())
+                    .map_err(|err| session.convert_error(err))?
+                    .into_iter()
+                    // Here all placeholders are filtered.
+                    .filter(|movement| !matches!(movement.manner, Manner::Placeholder))
+                    .collect::<Vec<_>>(),
+            )
+        };
+        // Add timeout to stepping.
+        let Ok(movements_result) = tokio::time::timeout(Duration::from_secs(3), task).await else {
+            return Err(transfer::ServerError::ServerSide("Stepping timed out".to_owned()).into());
+        };
+        movements_result?
+    };
+
+    let mut session = session_ref.lock().unwrap();
     // The session state is altered and needs to reinitialize.
     session.initialized = false;
     if movements.is_empty() {
