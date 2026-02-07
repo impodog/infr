@@ -53,6 +53,11 @@ impl From<crate::Coord> for Coord {
 impl From<Manner> for crate::MoveManner {
     fn from(value: Manner) -> Self {
         match value {
+            Manner::Placeholder => {
+                panic!(
+                    "Manner Placeholder should be filtered before converting to infr_transfer::MoveManner"
+                )
+            }
             Manner::Swipe(direction) => Self::Swipe(direction.into()),
             Manner::Add(_) => Self::Add,
             Manner::Remove => Self::Remove,

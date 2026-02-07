@@ -14,3 +14,8 @@ flags = ["TestFlag"]
 direction = 1
 group = "$You"
 coord = [5, 0]
+
+[[objects]]
+direction = 1
+group = "$Stop"
+coord = [3, 0]

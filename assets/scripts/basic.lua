@@ -7,10 +7,23 @@ infr.register_feature({
                 manner = { kind = "Swipe", direction = signal.direction },
                 object = object,
                 dest = dest,
-                forbid = false,
             }, }
         else
             return {}
         end
+    end,
+})
+infr.register_feature({
+    name = "Stop",
+    get_listen = function(layout, object, coord)
+        return { coord }
+    end,
+    respond = function(layout, movement, object, coord)
+        return { {
+            manner = "Placeholder", -- Manner doesn't matter since this object is not moving anyways
+            object = object,
+            dest = coord,
+            disables = { movement.object }
+        } }
     end,
 })

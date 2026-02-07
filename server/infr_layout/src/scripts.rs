@@ -174,6 +174,13 @@ pub struct Feature {
 #[derive(Debug, Id)]
 pub struct FeatureId(u32);
 
+/// Returned by the script, either listens to a object or a coord.
+#[derive(Debug, Clone, Copy)]
+pub enum ListenKind {
+    Object(u32),
+    Coord(infr_solver::Coord),
+}
+
 impl Feature {
     /// Runs internal lua function if it is present, and return the array of movements returned by the script.
     pub fn on_input(
@@ -198,9 +205,9 @@ impl Feature {
         layout: &LuaValue,
         object: u32,
         coord: infr_solver::Coord,
-    ) -> LuaResult<Option<Vec<u32>>> {
+    ) -> LuaResult<Option<Vec<ListenKind>>> {
         if let Some(get_listen) = self.get_listen.as_ref() {
-            let result = get_listen.call::<Vec<u32>>((layout, object, coord))?;
+            let result = get_listen.call::<Vec<ListenKind>>((layout, object, coord))?;
             Ok(Some(result))
         } else {
             Ok(None)

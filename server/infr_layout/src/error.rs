@@ -10,9 +10,9 @@ pub enum InfrError {
     /// The external script returns an unexpected error.
     Script(mlua::Error),
     /// One object moves in different ways.
-    DifferentMovements(Movement, Movement),
+    DifferentMovements(Box<(Movement, Movement)>),
     /// Ill-formed movement.
-    IllFormed(Movement),
+    IllFormed(Box<Movement>),
     /// No such object id.
     NoSuchId(u32),
 }

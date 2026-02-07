@@ -41,7 +41,7 @@ infr.ObjectDesc = {}
 --- Remove: Removes the object.
 --- Swipe: Moves the object in a direction, and may cause side effects such as pushing.
 --- Add: Adds a new object. Note that the object description should use UNUSED_ID, and an id will be assigned by Rust later.
----@alias infr.Manner {kind: "Teleport" | "Remove"} | {kind: "Swipe", direction: infr.Direction} | {kind: "Add", object: infr.ObjectDesc}
+---@alias infr.Manner {kind: "Teleport" | "Remove" | "Placeholder"} | {kind: "Swipe", direction: infr.Direction} | {kind: "Add", object: infr.ObjectDesc}
 
 --- A single movement of a object. This controls the whole game's actions and follows strict logical rules.
 --- Please note that in one round, one object can only have one movement(ignoring duplicates). Otherwise it is a logical failure.
@@ -67,9 +67,12 @@ infr.Signal = {}
 --- A function that is executed when the layout is stepped (at the start of each round).
 ---@alias infr.OnInput fun(layout: infr.Layout, signal: infr.Signal, object: integer, coord: infr.Coord): infr.Movement[]
 
+--- Returned by get_listen, instructing the feature to listen for specific movements, for optimization.
+---@alias infr.ListenKind infr.Coord | integer
+
 --- A function that is executed after "on_input", determining which objects they should listen to.
 --- Only listened objects' movements will be sent to "respond".
----@alias infr.GetListen fun(layout: infr.Layout, object: integer, coord: infr.Coord): integer[]
+---@alias infr.GetListen fun(layout: infr.Layout, object: integer, coord: infr.Coord): infr.ListenKind[]
 
 --- Responds to listened objects' movements.
 ---@alias infr.Respond fun(layout: infr.Layout, movement: infr.Movement, object: integer, coord: infr.Coord): infr.Movement[]
@@ -89,18 +92,18 @@ infr.Instance = {}
 
 --- Registers a feature, returning its id.
 ---@param feature infr.Feature
----@return integer The assigned id of the feature.
+---@return integer feature_id The assigned id of the feature.
 function infr.register_feature(feature) end
 
 --- Registers an instance, returning its id. Instances are tied to only one feature.
 ---@param instance infr.Instance
----@return integer The assigned id of the instance.
+---@return integer instance_id The assigned id of the instance.
 function infr.register_instance(instance) end
 
 --- Applies for a table local to the current player input sequence and unique to each object.
 --- This can be useful for tracking custom information.
 ---@param object integer The object that this table tracks.
----@return table The grabbed table.
+---@return table table The grabbed table.
 function infr.grab_table(object) end
 
 --- Moves the coordinates one tile in the given direction.

@@ -3,7 +3,7 @@ use crate::scripts::*;
 use mlua::prelude::*;
 
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     sync::{Arc, RwLock},
 };
 
@@ -12,6 +12,8 @@ use infr_solver::*;
 /// Describes the manner of movement.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Manner {
+    /// This movement effectively does nothing and will not be checked against.
+    Placeholder,
     /// Swipes towards that position and may push objects.
     Swipe(Direction),
     /// The object is put onto that position without a direction.
@@ -33,9 +35,9 @@ pub struct Movement {
     pub prereqs: Vec<u32>,
     /// These movements will not be performed unless this movement is performed.
     pub postreqs: Vec<u32>,
+    /// This movement will disable some other movements if performed.
+    pub disables: Vec<u32>,
     pub dest: Coord,
-    /// This movement can never be performed if set to true.
-    pub forbid: bool,
 }
 impl PartialOrd for Movement {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
@@ -46,17 +48,22 @@ impl Ord for Movement {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.object
             .cmp(&other.object)
+            .then_with(|| {
+                matches!(self.manner, Manner::Placeholder)
+                    .cmp(&matches!(other.manner, Manner::Placeholder))
+            })
             .then_with(|| self.dest.cmp(&other.dest))
     }
 }
 impl Movement {
     /// Returns if the two movements can never be performed together.
-    /// This will always return `false` if the two moving objects are different.
+    /// This will always return `false` if the two moving objects are different, or if any of the movements is a placeholder.
     pub fn conflicts(&self, other: &Movement) -> bool {
         if self.object != other.object {
             return false;
         }
-        if self.forbid && other.forbid {
+        if matches!(self.manner, Manner::Placeholder) || matches!(other.manner, Manner::Placeholder)
+        {
             return false;
         }
         self.dest != other.dest || self.manner != other.manner
@@ -81,7 +88,9 @@ pub struct Layout {
     move_queue: Vec<Movement>,
     /// The list of objects listening to the key object's movements.
     /// Only listened movements are sent to the listeners.
-    listen: HashMap<u32, Vec<u32>>,
+    listen_object: HashMap<u32, HashSet<u32>>,
+    /// Listens for objects that end in such position.
+    listen_coord: HashMap<Coord, HashSet<u32>>,
     to_index: HashMap<u32, usize>,
     /// The queue for all remove movements. This will be collected at the end of `Self::step`.
     remove_queue: Vec<usize>,
@@ -93,7 +102,8 @@ impl Layout {
         Self {
             map: Map::new(),
             move_queue: Default::default(),
-            listen: Default::default(),
+            listen_object: Default::default(),
+            listen_coord: Default::default(),
             to_index: Default::default(),
             remove_queue: Default::default(),
         }
@@ -120,19 +130,20 @@ impl Layout {
     /// If the movement is ill-formed, returns an error.
     fn perform_movement(&mut self, movement: Movement) -> Result<u32, InfrError> {
         match &movement.manner {
+            Manner::Placeholder => Ok(movement.object),
             Manner::Add(object_desc) => {
                 if object_desc.group.len() == 1 {
                     let mut object = Object::new(
                         movement.dest,
                         object_desc.kind,
-                        object_desc.group.iter().next().cloned().unwrap(),
+                        object_desc.group.first().cloned().unwrap(),
                     );
                     object.direction = object_desc.direction;
                     let id = object.id();
                     self.map.push(object);
                     Ok(id)
                 } else {
-                    Err(InfrError::IllFormed(movement))
+                    Err(InfrError::IllFormed(Box::new(movement)))
                 }
             }
             Manner::Swipe(direction) => {
@@ -274,7 +285,20 @@ impl Layout {
                     }
                     if let Some(listens) = feature.get_listen(&layout, object.id(), object.coord)? {
                         for target in listens.into_iter() {
-                            self.listen.entry(target).or_default().push(object.id());
+                            match target {
+                                ListenKind::Coord(coord) => {
+                                    self.listen_coord
+                                        .entry(coord)
+                                        .or_default()
+                                        .insert(object.id());
+                                }
+                                ListenKind::Object(target_id) => {
+                                    self.listen_object
+                                        .entry(target_id)
+                                        .or_default()
+                                        .insert(object.id());
+                                }
+                            }
                         }
                     }
                 }
@@ -286,9 +310,21 @@ impl Layout {
         while index < self.move_queue.len() {
             let mut new_movements = Vec::<Movement>::new();
             let movement = &self.move_queue[index];
-            let movement_value = movement.clone().into_lua(lua)?;
-            if let Some(listeners) = self.listen.get(&movement.object) {
-                for listener in listeners.iter() {
+            // Skip placeholder movements - they won't be listened.
+            if !matches!(movement.manner, Manner::Placeholder) {
+                let movement_value = movement.clone().into_lua(lua)?;
+                for listener in self
+                    .listen_object
+                    .get(&movement.object)
+                    .iter()
+                    .flat_map(|set| set.iter())
+                    .chain(
+                        self.listen_coord
+                            .get(&movement.dest)
+                            .iter()
+                            .flat_map(|set| set.iter()),
+                    )
+                {
                     if let Some(listener) = self.to_index.get(listener) {
                         self.perform_listen(
                             *listener,
@@ -302,8 +338,8 @@ impl Layout {
                         log::warn!("Non-existent listener provided by th script: {listener}");
                     }
                 }
+                self.move_queue.extend(new_movements.into_iter());
             }
-            self.move_queue.extend(new_movements.into_iter());
             index += 1;
         }
 
@@ -313,15 +349,20 @@ impl Layout {
         let mut new_move_queue = Vec::<Movement>::new();
         if !self.move_queue.is_empty() {
             for current in self.move_queue.drain(..) {
-                if let Some(previous) = new_move_queue.first()
+                if let Some(previous) = new_move_queue.first_mut()
                     && current.object == previous.object
                 {
-                    // This is excluded, since it doesn't matter if the object NOT move two different ways
+                    // Two forbid movements are excluded, since it doesn't matter if the object NOT move two different ways
                     if current.conflicts(previous) {
-                        return Err(InfrError::DifferentMovements(
+                        return Err(InfrError::DifferentMovements(Box::new((
                             current.clone(),
                             previous.clone(),
-                        ));
+                        ))));
+                    } else {
+                        // Or the two movements are merged.
+                        previous.postreqs.extend(current.postreqs.into_iter());
+                        previous.prereqs.extend(current.prereqs.into_iter());
+                        previous.disables.extend(current.disables.into_iter());
                     }
                 } else {
                     new_move_queue.push(current);
@@ -334,21 +375,27 @@ impl Layout {
         let graph = {
             let mut graph = crate::graph::Graph::<u32>::new();
             let mut map_object_node = HashMap::<u32, usize>::new();
+            let get_object = |object: u32,
+                              graph: &mut crate::graph::Graph<u32>,
+                              map_object_node: &mut HashMap<u32, usize>|
+             -> usize {
+                *map_object_node
+                    .entry(object)
+                    .or_insert_with(|| graph.add(object))
+            };
             for movement in self.move_queue.iter() {
-                let object = *map_object_node
-                    .entry(movement.object)
-                    .or_insert_with(|| graph.add(movement.object));
+                let object = get_object(movement.object, &mut graph, &mut map_object_node);
                 for prereq in movement.prereqs.iter().copied() {
-                    let prereq = *map_object_node
-                        .entry(prereq)
-                        .or_insert_with(|| graph.add(prereq));
+                    let prereq = get_object(prereq, &mut graph, &mut map_object_node);
                     graph.connect(prereq, object);
                 }
                 for postreq in movement.postreqs.iter().copied() {
-                    let postreq = *map_object_node
-                        .entry(postreq)
-                        .or_insert_with(|| graph.add(postreq));
+                    let postreq = get_object(postreq, &mut graph, &mut map_object_node);
                     graph.connect(object, postreq);
+                }
+                for disable in movement.disables.iter().copied() {
+                    let disable = get_object(disable, &mut graph, &mut map_object_node);
+                    graph.connect(object, disable);
                 }
             }
             graph.scc()
@@ -364,6 +411,8 @@ impl Layout {
         let mut performed_movements = Vec::new();
         let mut queue = VecDeque::new();
         let mut deg = Vec::new();
+        // Disabled object movements.
+        let mut disabled = HashSet::<u32>::new();
         deg.reserve_exact(graph.len());
         for u in 0..graph.len() {
             deg.push(graph.get_deg(u));
@@ -373,16 +422,27 @@ impl Layout {
         }
         while let Some(u) = queue.pop_front() {
             let mut ok = true;
+            // This checks if any of movements in the SCC disables themselves.
+            let mut all_disables = HashSet::<u32>::new();
             for object in graph.get(u).iter() {
                 let movement = map_object_movement
                     .get(object)
                     .expect("Movement should be in the map after inserting");
-                if movement.forbid {
+                all_disables.extend(movement.disables.iter().copied());
+                if disabled.contains(&movement.object) {
+                    ok = false;
+                    break;
+                }
+            }
+            for object in graph.get(u).iter() {
+                // Some movement disables the whole SCC.
+                if all_disables.contains(object) {
                     ok = false;
                     break;
                 }
             }
             if ok {
+                disabled.extend(all_disables.into_iter());
                 for object in graph.get(u).iter() {
                     let movement = map_object_movement
                         .remove(object)
@@ -392,11 +452,12 @@ impl Layout {
                     // Synchronizes object ids for Add movement.
                     performed_movements.last_mut().unwrap().object = object_id;
                 }
-                for v in graph.get_next(u).iter().copied() {
-                    deg[v] -= 1;
-                    if deg[v] == 0 {
-                        queue.push_back(v);
-                    }
+            }
+            // Even when the SCC is disabled, the movement continues.
+            for v in graph.get_next(u).iter().copied() {
+                deg[v] -= 1;
+                if deg[v] == 0 {
+                    queue.push_back(v);
                 }
             }
         }

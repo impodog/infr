@@ -6,6 +6,9 @@ impl IntoLua for crate::Manner {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         let table = lua.create_table()?;
         match self {
+            Self::Placeholder => {
+                table.set("type", "Placeholder")?;
+            }
             Self::Swipe(direction) => {
                 table.set("type", "Swipe")?;
                 table.set("direction", direction)?;
@@ -32,6 +35,7 @@ impl FromLua for crate::Manner {
                 match kind.as_ref().map(LuaBorrowedStr::as_ref) {
                     Ok("Remove") => Ok(Self::Remove),
                     Ok("Teleport") => Ok(Self::Teleport),
+                    Ok("Placeholder") => Ok(Self::Placeholder),
                     _ => Err(LuaError::FromLuaConversionError {
                         from: "string",
                         to: "Manner".to_owned(),
@@ -45,6 +49,7 @@ impl FromLua for crate::Manner {
             LuaValue::Table(table) => {
                 let kind = table.get::<String>("kind")?;
                 match kind.as_str() {
+                    "Placeholder" => Ok(Self::Placeholder),
                     "Swipe" => {
                         let direction = table.get::<infr_solver::Direction>("direction")?;
                         Ok(Self::Swipe(direction))
@@ -79,7 +84,7 @@ impl IntoLua for crate::Movement {
         table.set("dest", self.dest)?;
         table.set("prereqs", self.prereqs)?;
         table.set("postreqs", self.postreqs)?;
-        table.set("forbid", self.forbid)?;
+        table.set("disables", self.disables)?;
         Ok(LuaValue::Table(table))
     }
 }
@@ -92,14 +97,14 @@ impl FromLua for crate::Movement {
                 let dest = table.get::<infr_solver::Coord>("dest")?;
                 let prereqs = table.get::<Vec<u32>>("prereqs").unwrap_or_default();
                 let postreqs = table.get::<Vec<u32>>("postreqs").unwrap_or_default();
-                let forbid = table.get::<bool>("forbid").unwrap_or(false);
+                let disables = table.get::<Vec<u32>>("disables").unwrap_or_default();
                 Ok(Self {
                     manner,
                     object,
                     dest,
                     prereqs,
                     postreqs,
-                    forbid,
+                    disables,
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
@@ -131,6 +136,24 @@ impl FromLua for crate::Signal {
                 from: "value",
                 to: "Signal".to_owned(),
                 message: Some("Invalid value type for Signal".to_owned()),
+            }),
+        }
+    }
+}
+
+// IntoLua is not implemented, as this can only be returned by the script.
+impl FromLua for crate::scripts::ListenKind {
+    fn from_lua(value: LuaValue, lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Integer(integer) => Ok(Self::Object(integer as u32)),
+            LuaValue::Table(_) => {
+                let coord = infr_solver::Coord::from_lua(value, lua)?;
+                Ok(Self::Coord(coord))
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: "value",
+                to: "ListenKind".to_owned(),
+                message: Some("Invalid value type for ListenKind".to_owned()),
             }),
         }
     }

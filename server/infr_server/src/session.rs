@@ -61,7 +61,8 @@ impl Session {
                 transfer::ServerError::Contradiction(transfer::Contradiction { rules, axioms })
             }
             InfrError::Overlap(coord) => transfer::ServerError::Overlap(coord.into()),
-            InfrError::DifferentMovements(first, second) => {
+            InfrError::DifferentMovements(movements) => {
+                let (first, second) = *movements;
                 transfer::ServerError::DifferentMovements(first.into(), second.into())
             }
             InfrError::Script(err) => transfer::ServerError::ServerSide(err.to_string()),
@@ -303,7 +304,11 @@ async fn step(
     let movements = session
         .layout
         .step(signal, &state.lua, &state.scripts.read().unwrap())
-        .map_err(|err| session.convert_error(err))?;
+        .map_err(|err| session.convert_error(err))?
+        .into_iter()
+        // Here all placeholders are filtered.
+        .filter(|movement| !matches!(movement.manner, Manner::Placeholder))
+        .collect::<Vec<_>>();
 
     // The session state is altered and needs to reinitialize.
     session.initialized = false;
