@@ -13,6 +13,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest()),
             infr_client::InfrClientPlugin,
             infr_res::InfrResPlugin,
+            infr_level::InfrLevelPlugin,
         ))
         .add_systems(PreStartup, send_load_map)
         .run();

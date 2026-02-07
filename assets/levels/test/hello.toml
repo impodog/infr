@@ -8,12 +8,6 @@ tinting = "Red"
 direction = 1
 group = "$Empty"
 coord = [0, 0]
-flags = ["S:Always:You"]
-
-[[objects]]
-direction = 1
-group = "$You"
-coord = [5, 0]
 
 [[objects]]
 direction = 1
@@ -24,4 +18,4 @@ coord = [3, 0]
 direction = 1
 group = "$Box"
 coord = [5, 3]
-flags = ["S:Always:Push"]
+flags = ["S:Always:You", "C:Finish:Test,Level2"]

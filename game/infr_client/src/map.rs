@@ -119,6 +119,7 @@ fn observe_level_map(
                 },
                 crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
                 crate::ObjectGroups(object.groups),
+                crate::ObjectFlags(object.flags),
             ))
             .id();
         client_map.objects.insert(object.id, entity);

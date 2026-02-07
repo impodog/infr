@@ -154,6 +154,7 @@ impl Object {
     pub fn flags(&self) -> &Vec<String> {
         &self.flags
     }
+
     /// Searches for all flags that starts with this prefix.
     /// This will automatically strip the prefix.
     ///
@@ -192,7 +193,6 @@ impl Object {
             }
             l
         };
-        println!("{flags:?} range {lower_bound}..{upper_bound}");
         if lower_bound < upper_bound {
             flags[lower_bound..upper_bound].iter()
         } else {

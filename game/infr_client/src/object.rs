@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 /// Entry struct for object entities.
 #[derive(Component, Default, Debug, Clone, Copy)]
-#[require(ObjectState, Position, Sprite, MovementState)]
+#[require(ObjectState, Position, Sprite, MovementState, ObjectFlags)]
 pub struct Object {
     pub id: ObjectId,
     pub session_id: SessionId,
@@ -25,6 +25,55 @@ pub struct ObjectState {
 /// Stores all the groups that the object is in, provided by the server.
 #[derive(Component, Default, Debug, Clone, Deref, DerefMut)]
 pub struct ObjectGroups(pub Vec<String>);
+
+/// Object flags acquired from the level configuration.
+#[derive(Component, Default, Debug, Clone, Deref, DerefMut)]
+pub struct ObjectFlags(pub Vec<String>);
+
+impl ObjectFlags {
+    /// Searches for all flags that starts with this prefix.
+    /// This will automatically strip the prefix.
+    ///
+    /// Note: The flags must be sorted(auto done by the object).
+    pub fn search_flags<'f>(&'f self, pat: &str) -> impl std::iter::Iterator<Item = &'f str> {
+        fn take_slice(s: &str, len: usize) -> &str {
+            if len < s.len() { &s[..len] } else { s }
+        }
+
+        let lower_bound = {
+            let mut l = 0;
+            let mut r = self.len();
+            while l < r {
+                let mid = (l + r) >> 1;
+                if self[mid].as_str() < pat {
+                    l = mid + 1;
+                } else {
+                    r = mid;
+                }
+            }
+            l
+        };
+        let upper_bound = {
+            let mut l = 0;
+            let mut r = self.len();
+            while l < r {
+                let mid = (l + r) >> 1;
+                if take_slice(self[mid].as_str(), pat.len()) <= pat {
+                    l = mid + 1;
+                } else {
+                    r = mid;
+                }
+            }
+            l
+        };
+        if lower_bound < upper_bound {
+            self[lower_bound..upper_bound].iter()
+        } else {
+            self[0..0].iter()
+        }
+        .map(|s| &s[pat.len()..])
+    }
+}
 
 /// Stores the center and extent of all positions
 #[derive(Resource, Default, Debug, Clone, Copy, PartialEq)]

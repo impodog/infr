@@ -187,6 +187,7 @@ pub(crate) fn send_animations(
                         },
                         crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
                         crate::ObjectGroups(object.groups.clone()),
+                        crate::ObjectFlags(object.flags.clone()),
                     ))
                     .id();
                 map.objects.insert(*id, entity);

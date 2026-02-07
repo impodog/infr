@@ -152,7 +152,7 @@ pub struct SpriteAtlas {
     #[serde(default = "return_1")]
     pub count: u32,
     /// Milliseconds between switching frames.
-    #[serde(default = "return_1000")]
+    #[serde(default = "return_750")]
     pub interval: u32,
 }
 const fn return_default_size() -> (u32, u32) {
@@ -161,8 +161,8 @@ const fn return_default_size() -> (u32, u32) {
 const fn return_1() -> u32 {
     1
 }
-const fn return_1000() -> u32 {
-    1000
+const fn return_750() -> u32 {
+    750
 }
 
 /// Configuration for sprites in the game.
@@ -238,9 +238,14 @@ pub struct ConfigFile {
     pub sprites_path: PathBuf,
     #[serde(skip)]
     pub sprites: SpriteConfig,
+    #[serde(default = "default_user_data_path")]
+    pub user_data_path: PathBuf,
 }
 fn default_sprite_path() -> PathBuf {
     PathBuf::from("assets/sprites/config.json")
+}
+fn default_user_data_path() -> PathBuf {
+    PathBuf::from("user.ron")
 }
 
 impl ConfigFile {
