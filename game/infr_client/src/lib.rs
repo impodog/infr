@@ -40,7 +40,8 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<Map>()
             .init_resource::<CurrentMovements>()
             .init_resource::<CurrentObjects>()
-            .init_resource::<CurrentRound>();
+            .init_resource::<CurrentRound>()
+            .init_resource::<PlayerInputQueue>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()
@@ -61,13 +62,10 @@ impl Plugin for InfrClientPlugin {
             FixedPostUpdate,
             (finish_load_map,).run_if(in_state(MapState::Loading)),
         );
-        app.add_systems(
-            FixedPreUpdate,
-            (listen_keyboard_input,).run_if(in_state(MapState::Free)),
-        );
+        app.add_systems(FixedPreUpdate, (listen_keyboard_input,));
         app.add_systems(
             FixedUpdate,
-            (read_player_input,).run_if(in_state(MapState::Free)),
+            (read_player_input, queue_player_input).run_if(in_state(GlobalState::Game)),
         );
         app.add_systems(
             FixedUpdate,

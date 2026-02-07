@@ -1,1 +1,5 @@
-{}
+{
+  "map": {
+    "Box": [{ "path": "box.png", "count": 2 }]
+  }
+}

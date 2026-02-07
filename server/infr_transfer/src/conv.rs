@@ -106,7 +106,7 @@ impl crate::Map {
                     ObjectKind::Symbol => format!("%{}", object.group),
                     ObjectKind::Operator => format!("={}", object.group),
                 },
-                flags: object.flags.clone(),
+                flags: object.flags().clone(),
             });
         }
         Self(result)
@@ -166,7 +166,7 @@ impl TryFrom<crate::LevelObject> for Object {
             }
         };
         object.direction = value.direction.into();
-        object.flags = value.flags;
+        object.set_flags(value.flags);
         Ok(object)
     }
 }

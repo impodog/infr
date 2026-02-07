@@ -1,6 +1,6 @@
 //! This file handles player input and send requests to step the game.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 
 use crate::{parse_response_and_report, prelude::*};
 use bevy::prelude::*;
@@ -33,17 +33,30 @@ pub(crate) fn listen_keyboard_input(
 
 // -- Handle player inputs
 
-pub(crate) fn read_player_input(
+/// Queues up player inputs, allowing more slick controls(by pre-sending requests) and pre-inputs.
+#[derive(Resource, Debug, Default, Clone, Deref, DerefMut)]
+pub struct PlayerInputQueue(pub VecDeque<transfer::Direction>);
+
+pub(crate) fn queue_player_input(
     mut reader: MessageReader<PlayerDirection>,
+    mut queue: ResMut<PlayerInputQueue>,
+) {
+    queue.extend(reader.read().map(|message| message.0));
+}
+
+pub(crate) fn read_player_input(
     mut commands: Commands,
     mut map_state: ResMut<NextState<crate::MapState>>,
     mut current_round: ResMut<crate::CurrentRound>,
     session: Res<crate::CurrentSession>,
+    mut queue: ResMut<PlayerInputQueue>,
 ) -> Result<()> {
-    let Some(direction) = reader.read().last() else {
+    if current_round.actual_round != 0 {
+        return Ok(());
+    }
+    let Some(direction) = queue.pop_front() else {
         return Ok(());
     };
-    let direction = direction.0;
     info!("Player input direction: {direction:?}");
     commands
         .spawn(make_post_request(
@@ -150,6 +163,8 @@ pub(crate) fn send_animations(
     }
     if current_movements.is_empty() {
         map_state.set(crate::MapState::Free);
+        current_round.actual_round = 0;
+        current_round.animation_round = 0xfeedd095;
         return Ok(());
     }
 

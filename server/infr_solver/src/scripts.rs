@@ -162,7 +162,7 @@ impl Map {
             direction: object.direction,
             kind: object.kind,
             group: group.clone(),
-            flags: object.flags.clone(),
+            flags: object.flags().clone(),
         })
     }
 }

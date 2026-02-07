@@ -8,7 +8,7 @@ tinting = "Red"
 direction = 1
 group = "$Empty"
 coord = [0, 0]
-flags = ["TestFlag"]
+flags = ["S:Always:You"]
 
 [[objects]]
 direction = 1
@@ -22,5 +22,6 @@ coord = [3, 0]
 
 [[objects]]
 direction = 1
-group = "$Push"
+group = "$Box"
 coord = [5, 3]
+flags = ["S:Always:Push"]

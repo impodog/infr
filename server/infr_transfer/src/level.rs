@@ -33,6 +33,8 @@ pub struct LevelMetadata {
     /// Chooses a color tinting style for the level.
     #[serde(default)]
     pub tinting: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 fn default_title() -> String {

@@ -344,7 +344,6 @@ impl Layout {
             }
             index += 1;
         }
-        println!("Movequeue: {:?}", self.move_queue);
 
         // Test if there is any objects that move two different ways,
         // and remove duplicate moves.

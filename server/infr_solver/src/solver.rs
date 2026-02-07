@@ -1,6 +1,6 @@
 //! Infr solver object representation.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::consts;
@@ -115,7 +115,7 @@ pub struct Object {
     /// For Operator, this is the type of the operator.
     pub group: String,
     /// Additional flags for special cases.
-    pub flags: Vec<String>,
+    flags: Vec<String>,
 }
 
 /// Atomic counter for generating unique object IDs.
@@ -142,8 +142,68 @@ impl Object {
 
     /// Sets the flags of the object.
     pub fn with_flags(mut self, flags: Vec<String>) -> Self {
-        self.flags = flags;
+        self.set_flags(flags);
         self
+    }
+    /// Replaces the flags of the object with a given vector.
+    pub fn set_flags(&mut self, flags: Vec<String>) {
+        self.flags = flags;
+        self.flags.sort();
+    }
+    /// Returns the reference to the object's flags.
+    pub fn flags(&self) -> &Vec<String> {
+        &self.flags
+    }
+    /// Searches for all flags that starts with this prefix.
+    /// This will automatically strip the prefix.
+    ///
+    /// Note: The flags must be sorted(auto done by the object).
+    pub fn search_flags_with<'f>(
+        flags: &'f [String],
+        pat: &str,
+    ) -> impl std::iter::Iterator<Item = &'f str> {
+        fn take_slice(s: &str, len: usize) -> &str {
+            if len < s.len() { &s[..len] } else { s }
+        }
+
+        let lower_bound = {
+            let mut l = 0;
+            let mut r = flags.len();
+            while l < r {
+                let mid = (l + r) >> 1;
+                if flags[mid].as_str() < pat {
+                    l = mid + 1;
+                } else {
+                    r = mid;
+                }
+            }
+            l
+        };
+        let upper_bound = {
+            let mut l = 0;
+            let mut r = flags.len();
+            while l < r {
+                let mid = (l + r) >> 1;
+                if take_slice(flags[mid].as_str(), pat.len()) <= pat {
+                    l = mid + 1;
+                } else {
+                    r = mid;
+                }
+            }
+            l
+        };
+        println!("{flags:?} range {lower_bound}..{upper_bound}");
+        if lower_bound < upper_bound {
+            flags[lower_bound..upper_bound].iter()
+        } else {
+            flags[0..0].iter()
+        }
+        .map(|s| &s[pat.len()..])
+    }
+
+    /// Convenience method for searching flags of this object that start with `pat`.
+    pub fn search_flags<'f>(&'f self, pat: &str) -> impl std::iter::Iterator<Item = &'f str> {
+        Self::search_flags_with(self.flags().as_slice(), pat)
     }
 
     /// Returns the unique id of the object.
@@ -477,21 +537,25 @@ impl Map {
     pub fn prove_groups(&mut self, relevant_groups: &BTreeSet<String>) {
         let mut groups = Vec::<Vec<String>>::new();
         for (index, object) in self.objects.iter().enumerate() {
-            groups.push(Default::default());
+            let mut current_groups = HashSet::new();
             if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol) {
                 self.push_object_state(index);
                 for group in relevant_groups.iter() {
                     if self.prove_variable(group) {
-                        groups.last_mut().unwrap().push(group.to_string());
+                        current_groups.insert(group.to_string());
                     }
                 }
                 self.revert();
                 // Special case: The object's natural group is not in the relevant groups,
                 // but we still need to add it.
                 if !relevant_groups.contains(&object.group) {
-                    groups.last_mut().unwrap().push(object.group.clone());
+                    current_groups.insert(object.group.clone());
+                }
+                for flag in object.search_flags("S:Always:") {
+                    current_groups.insert(flag.to_owned());
                 }
             }
+            groups.push(current_groups.into_iter().collect());
         }
         self.groups = groups;
     }
