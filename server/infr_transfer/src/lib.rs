@@ -185,6 +185,13 @@ pub struct SendStepResponse {
 
 pub type GetMapRequest = SessionId;
 
+/// Gets some of the objects requested to improve efficiency.
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetObjectsRequest {
+    pub session_id: SessionId,
+    pub objects: Vec<ObjectId>,
+}
+
 pub type SnapshotId = u32;
 pub type TakeSnapshotRequest = SessionId;
 #[derive(Serialize, Deserialize, Debug, Clone)]

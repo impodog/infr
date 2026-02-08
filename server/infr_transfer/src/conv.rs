@@ -111,6 +111,46 @@ impl crate::Map {
         }
         Self(result)
     }
+
+    /// Gets objects in corresponding order to the id iterator.
+    /// If an id is not present in the map, an `Err` value containing that id is returned.
+    pub fn from_map_objects(
+        map: &Map,
+        objects: impl IntoIterator<Item = crate::ObjectId>,
+    ) -> Result<Self, crate::ObjectId> {
+        let mut result = Vec::new();
+        let mut indices = Vec::new();
+        for (index, object) in map.objects.iter().enumerate() {
+            indices.push((object.id(), index));
+        }
+        indices.sort_by_key(|(id, _)| *id);
+        for id in objects {
+            let Ok(vector_index) = indices.binary_search_by_key(&id, |(id, _)| *id) else {
+                return Err(id);
+            };
+            let index = indices[vector_index].1;
+            let object = map.objects.get(index).unwrap();
+            println!("Requested: {} given: {}", id, object.id());
+            result.push(crate::Object {
+                id: object.id(),
+                coord: object.coord.into(),
+                direction: object.direction.into(),
+                groups: map
+                    .groups()
+                    .get(index)
+                    .expect("\"from_map\" should be called after proving groups")
+                    .clone(),
+                nature: match &object.kind {
+                    ObjectKind::Instance => format!("${}", object.group),
+                    ObjectKind::Structure => format!("@{}", object.group),
+                    ObjectKind::Symbol => format!("%{}", object.group),
+                    ObjectKind::Operator => format!("={}", object.group),
+                },
+                flags: object.flags().clone(),
+            });
+        }
+        Ok(Self(result))
+    }
 }
 
 impl From<String> for crate::ServerError {

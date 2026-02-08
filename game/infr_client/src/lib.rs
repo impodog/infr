@@ -42,11 +42,13 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<CurrentObjects>()
             .init_resource::<CurrentRound>()
             .init_resource::<PlayerInputQueue>()
-            .init_resource::<StepRequestLevel>();
+            .init_resource::<StepRequestLevel>()
+            .init_resource::<ActionCount>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()
-            .add_message::<PlayerDirection>();
+            .add_message::<PlayerDirection>()
+            .add_message::<ActionFinished>();
         app.add_systems(Update, (convert_position,));
         app.add_systems(PreUpdate, (start_load_map, remove_past_objects));
         app.add_systems(
@@ -67,7 +69,9 @@ impl Plugin for InfrClientPlugin {
         app.add_systems(
             PreUpdate,
             (
-                read_player_input.run_if(in_state(MapState::Free)),
+                (test_action_finished, read_player_input)
+                    .chain()
+                    .run_if(in_state(MapState::Free)),
                 queue_player_input,
             )
                 .run_if(in_state(GlobalState::Game)),

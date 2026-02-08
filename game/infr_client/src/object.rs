@@ -20,7 +20,7 @@ impl Position {
     pub fn try_round(&self) -> Option<Coord> {
         fn try_round_f32(value: f32) -> Option<i32> {
             let rounded = value.round();
-            if value - rounded < 1e-4 {
+            if (value - rounded).abs() < 1e-2 {
                 Some(rounded as i32)
             } else {
                 None
@@ -167,8 +167,9 @@ pub(crate) struct MovementState {
 pub(crate) struct AnyObjectMoving(pub bool);
 
 pub(crate) fn move_object(
-    mut q_object: Query<(&mut Position, &mut MovementState)>,
+    mut q_object: Query<(&mut Position, &mut MovementState, &mut Transform)>,
     mut any_object_moving: ResMut<AnyObjectMoving>,
+    round: Res<crate::CurrentRound>,
     time: Res<Time>,
 ) {
     fn min_max(a: f32, b: f32) -> (f32, f32) {
@@ -180,7 +181,7 @@ pub(crate) fn move_object(
     let any_moving = OnceLock::<bool>::new();
     q_object
         .par_iter_mut()
-        .for_each(|(mut position, mut movement_state)| {
+        .for_each(|(mut position, mut movement_state, mut transform)| {
             if movement_state.moving {
                 let delta = movement_state.dest - **position;
                 let direction = (movement_state.dest - **position).normalize_or_zero();
@@ -203,6 +204,8 @@ pub(crate) fn move_object(
                 } else {
                     any_moving.set(true).ok();
                 }
+                // The ensures objects that move later the display on top.
+                transform.translation.z = round.animation_round as f32;
             }
         });
     any_object_moving.0 = *any_moving.get_or_init(|| false);

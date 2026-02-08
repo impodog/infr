@@ -1,6 +1,6 @@
 //! Infr solver object representation.
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 
 use crate::consts;
@@ -537,7 +537,7 @@ impl Map {
     pub fn prove_groups(&mut self, relevant_groups: &BTreeSet<String>) {
         let mut groups = Vec::<Vec<String>>::new();
         for (index, object) in self.objects.iter().enumerate() {
-            let mut current_groups = HashSet::new();
+            let mut current_groups = BTreeSet::new();
             if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol) {
                 self.push_object_state(index);
                 for group in relevant_groups.iter() {

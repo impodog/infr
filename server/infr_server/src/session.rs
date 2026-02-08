@@ -98,6 +98,7 @@ pub(crate) fn route_session(state: AppState) -> Router<AppState> {
         .route("/status", get(get_session_status))
         .route("/step", post(step))
         .route("/map", get(get_map))
+        .route("/objects", get(get_objects))
         .route("/snap", post(take_snapshot))
         .route("/remove", post(remove_snapshot))
         .route("/revert", post(revert_snapshot))
@@ -262,6 +263,21 @@ async fn get_map(
 
     session.initialize()?;
     let map = transfer::Map::from_map(&session.layout.map);
+
+    Ok(map.into())
+}
+
+async fn get_objects(
+    state: State<AppState>,
+    req: Json<transfer::GetObjectsRequest>,
+) -> Response<Json<transfer::Map>> {
+    let session_ref = state.0.get_session(req.session_id)?;
+    let mut session = session_ref.lock().unwrap();
+
+    session.initialize()?;
+    let map = transfer::Map::from_map_objects(&session.layout.map, req.0.objects).map_err(
+        |object_id| transfer::ServerError::BadRequest(format!("Unknown object id: {}", object_id)),
+    )?;
 
     Ok(map.into())
 }

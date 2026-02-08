@@ -1,0 +1,5 @@
+{
+  "sprites": {
+    "Omega": [{ "path": "omega.png", "count": 2, "interval": 500 }]
+  }
+}

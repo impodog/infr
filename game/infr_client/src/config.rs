@@ -173,7 +173,7 @@ pub struct SpriteConfig {
     pub include: Vec<PathBuf>,
     /// Map from aliases to the actual sprite.
     #[serde(default)]
-    pub map: HashMap<String, Vec<SpriteAtlas>>,
+    pub sprites: HashMap<String, Vec<SpriteAtlas>>,
     /// Defines tinting style aliases.
     #[serde(default)]
     pub tinting: HashMap<String, Color>,
@@ -199,7 +199,7 @@ impl SpriteConfig {
                 Default::default()
             }
         };
-        for list in config.map.values_mut() {
+        for list in config.sprites.values_mut() {
             let mut new_list = Vec::new();
             for mut atlas in list.drain(..) {
                 let new_path = base_path.join(&atlas.path);
@@ -214,8 +214,10 @@ impl SpriteConfig {
         }
         for sub_path in config.include.drain(..) {
             let sub_path = base_path.join(&sub_path);
-            let SpriteConfig { map, tinting, .. } = SpriteConfig::load(sub_path);
-            config.map.extend(map.into_iter());
+            let SpriteConfig {
+                sprites, tinting, ..
+            } = SpriteConfig::load(sub_path);
+            config.sprites.extend(sprites.into_iter());
             config.tinting.extend(tinting.into_iter())
         }
         config

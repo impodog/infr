@@ -1,0 +1,5 @@
+{
+  "sprites": {
+    "Wall": [{ "path": "wall.png", "interval": 1000 }]
+  }
+}

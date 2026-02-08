@@ -89,7 +89,7 @@ pub(crate) fn modify_animation(
 ) {
     let default_sprite = config::CONFIG
         .sprites
-        .map
+        .sprites
         .get("Empty")
         .and_then(|sprites| sprites.first())
         .map(|sprite| {
@@ -110,7 +110,7 @@ pub(crate) fn modify_animation(
             } else {
                 *visibility = Visibility::Inherited;
             }
-            let Some(config) = config::CONFIG.sprites.map.get(&animation.name) else {
+            let Some(config) = config::CONFIG.sprites.sprites.get(&animation.name) else {
                 *sprite = default_sprite.clone();
                 return;
             };
@@ -152,7 +152,7 @@ pub(crate) fn tick_animation(
 macro_rules! try_return {
     ($name: expr) => {{
         let name = $name;
-        if config::CONFIG.sprites.map.get(&name).is_some() {
+        if config::CONFIG.sprites.sprites.get(&name).is_some() {
             return name;
         }
     }};

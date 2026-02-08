@@ -44,6 +44,7 @@ pub(crate) fn queue_player_input(
     queue.extend(reader.read().map(|message| message.0));
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn read_player_input(
     mut commands: Commands,
     mut map_state: ResMut<NextState<crate::MapState>>,
@@ -52,8 +53,12 @@ pub(crate) fn read_player_input(
     mut queue: ResMut<PlayerInputQueue>,
     q_request: Query<(), With<HttpRequest>>,
     mut request_level: ResMut<StepRequestLevel>,
+    action_count: Res<ActionCount>,
 ) -> Result<()> {
-    if current_round.actual_round != 0 || q_request.iter().next().is_some() {
+    if current_round.actual_round != 0
+        || q_request.iter().next().is_some()
+        || action_count.actual != action_count.messages
+    {
         return Ok(());
     }
     let Some(direction) = queue.pop_front() else {
@@ -116,13 +121,24 @@ fn observe_step(
         return Ok(());
     }
 
+    let requested_objects = movements
+        .iter()
+        .map(|movement| movement.object)
+        .collect::<Vec<_>>();
+
     current_movements.0 = movements
         .into_iter()
         .map(|movement| (movement.object, movement))
         .collect();
 
     commands
-        .spawn(make_get_request("session/map", &session.0)?)
+        .spawn(make_get_request(
+            "session/objects",
+            &transfer::GetObjectsRequest {
+                session_id: session.0,
+                objects: requested_objects,
+            },
+        )?)
         .observe(observe_load_map_when_moving);
     commands.entity(event.entity).despawn();
 
@@ -161,6 +177,7 @@ pub(crate) fn send_animations(
     mut any_moving: ResMut<crate::AnyObjectMoving>,
     mut current_round: ResMut<crate::CurrentRound>,
     mut map_state: ResMut<NextState<crate::MapState>>,
+    mut action_count: ResMut<ActionCount>,
 ) -> Result<()> {
     use transfer::MoveManner;
 
@@ -171,6 +188,7 @@ pub(crate) fn send_animations(
     if current_movements.is_empty() {
         current_round.actual_round = 0;
         current_round.animation_round = 0;
+        action_count.actual += 1;
         map_state.set(crate::MapState::Free);
         return Ok(());
     }
@@ -256,7 +274,6 @@ pub(crate) fn finish_animations(
     current_round: ResMut<CurrentRound>,
     mut request_level: ResMut<StepRequestLevel>,
 ) -> Result<()> {
-    let num = q_request.iter().count();
     if !any_moving.0 && q_request.iter().next().is_none() && current_round.actual_round == current_round.animation_round && request_level.0 == 0
         // Skip the first round --- provides input to the user in another function.
         && current_round.actual_round != 0
@@ -273,4 +290,29 @@ pub(crate) fn finish_animations(
             .observe(observe_step);
     }
     Ok(())
+}
+
+/// Tracks the current player actions that has been done.
+///
+/// The actual actions is incremented by the last time the animations are sent, not when done playing.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub struct ActionCount {
+    messages: usize,
+    pub actual: usize,
+}
+
+/// Message that indicates a player action has finished playing all animations.
+/// You should not use OnEnter(MapState::Free), because it is changed before the last animation.
+#[derive(Message, Debug, Clone, Copy)]
+pub struct ActionFinished(pub usize);
+
+pub(crate) fn test_action_finished(
+    mut action_count: ResMut<ActionCount>,
+    mut writer: MessageWriter<ActionFinished>,
+    any_moving: Res<crate::AnyObjectMoving>,
+) {
+    if !any_moving.0 && action_count.messages < action_count.actual {
+        action_count.messages += 1;
+        writer.write(ActionFinished(action_count.messages));
+    }
 }

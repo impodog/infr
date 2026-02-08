@@ -18,6 +18,6 @@ impl Plugin for InfrLevelPlugin {
 
         app.add_systems(PreUpdate, load_room);
         app.add_systems(OnExit(infr_client::MapState::Loading), finish_load_room);
-        app.add_systems(OnEnter(infr_client::MapState::Free), switch_to_next_room);
+        app.add_systems(PostUpdate, switch_to_next_room);
     }
 }

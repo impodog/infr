@@ -27,6 +27,7 @@ pub(crate) fn load_room(
             .unwrap_or_default();
         let new_coord = prev_coord + direction.delta();
         user.add_room(room.clone(), new_coord);
+        user.current_room.0 = room.clone();
         current_room.0 = room.clone();
     }
 }
@@ -46,6 +47,7 @@ pub(crate) fn startup_load_user(
 }
 
 pub(crate) fn switch_to_next_room(
+    mut reader: MessageReader<infr_client::ActionFinished>,
     mut writer: MessageWriter<LoadRoomMessage>,
     q_object: Query<(
         &infr_client::Position,
@@ -53,6 +55,9 @@ pub(crate) fn switch_to_next_room(
         &infr_client::ObjectGroups,
     )>,
 ) {
+    if reader.read().next().is_none() {
+        return;
+    }
     let you: String = "You".into();
     let mut finish_tiles = HashMap::<Coord, String>::new();
     // BTreeSet ensure top left finish tiles are tested first.
@@ -70,6 +75,7 @@ pub(crate) fn switch_to_next_room(
             players.insert(coord);
         }
     }
+    info!("players: {players:?}; finish_tiles: {finish_tiles:?}");
     for player in players.iter() {
         if let Some(finish_flag) = finish_tiles.get(player) {
             let Some(mid) = finish_flag.find('/') else {

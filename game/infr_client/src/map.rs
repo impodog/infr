@@ -101,10 +101,12 @@ fn observe_level_map(
     mut commands: Commands,
     mut writer: MessageWriter<LevelError>,
     mut client_map: ResMut<crate::Map>,
+    mut action_count: ResMut<crate::ActionCount>,
     session: Res<CurrentSession>,
 ) -> Result<()> {
     let map = parse_response_and_report!(transfer::Map, writer, event);
     client_map.clear();
+    *action_count = crate::ActionCount::default();
     info!("Acquired level map: {map:?}");
     for object in map.0.into_iter() {
         let entity = commands

@@ -1,5 +1,5 @@
 {
-  "map": {
+  "sprites": {
     "Box": [{ "path": "box.png", "count": 2 }]
   }
 }

@@ -6,14 +6,15 @@ tinting = "Red"
 
 [[objects]]
 direction = 1
-group = "$Empty"
+group = "$Omega"
 coord = [0, 0]
 flags = ["C:Finish:Left/test.level2"]
 
 [[objects]]
 direction = 1
-group = "$Stop"
+group = "$Wall"
 coord = [3, 0]
+flags = ["S:Always:Stop"]
 
 [[objects]]
 direction = 1
