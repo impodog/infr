@@ -4,13 +4,15 @@
 //!
 //! Please note that the names collide with those defined in server details, so you must use this crate under a module name.
 
+#![feature(never_type)]
+
 #[cfg(feature = "server")]
 mod conv;
 
 mod level;
 pub use level::*;
 
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 
 use serde::{Deserialize, Serialize};
 
@@ -24,11 +26,52 @@ impl Direction {
     pub const UP: Self = Self(2);
     pub const LEFT: Self = Self(3);
     pub const DOWN: Self = Self(4);
+    /// Gets the coordinates of unit vector in that direction.
+    pub fn delta(&self) -> Coord {
+        match self.0 {
+            1 => Coord(1, 0),
+            2 => Coord(0, 1),
+            3 => Coord(-1, 0),
+            4 => Coord(0, -1),
+            _ => Coord(0, 0),
+        }
+    }
+
+    /// Returns if the direction is normal (0, 1, 2, 3, 4). This will include UNKNOWN.
+    pub fn is_normal(&self) -> bool {
+        self.0 <= 4
+    }
+
+    /// Returns if the direction is one of the four directions (1, 2, 3, 4). This will not include UNKNOWN
+    pub fn is_some(&self) -> bool {
+        self.0 <= 4 && self.0 != 0
+    }
+}
+impl FromStr for Direction {
+    type Err = !;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let direction = match s {
+            "Right" => Self::RIGHT,
+            "Up" => Self::UP,
+            "Left" => Self::LEFT,
+            "Down" => Self::DOWN,
+            _ => Self::default(),
+        };
+        Ok(direction)
+    }
 }
 
 /// The coordinates where tiles are.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
 pub struct Coord(pub i32, pub i32);
+impl std::ops::Add for Coord {
+    type Output = Coord;
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0, self.1 + rhs.1)
+    }
+}
 
 /// The type for Object ids. This is globally unique even in different gameplays.
 pub type ObjectId = u32;

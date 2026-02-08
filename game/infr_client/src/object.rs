@@ -15,6 +15,23 @@ pub struct Object {
 #[derive(Component, Deref, DerefMut, Default, Debug, Clone, Copy)]
 pub struct Position(pub Vec2);
 
+impl Position {
+    /// Attempts to round the position to nearest integer coordinates, if the error is acceptable.
+    pub fn try_round(&self) -> Option<Coord> {
+        fn try_round_f32(value: f32) -> Option<i32> {
+            let rounded = value.round();
+            if value - rounded < 1e-6 {
+                Some(rounded as i32)
+            } else {
+                None
+            }
+        }
+        let x = try_round_f32(self.x)?;
+        let y = try_round_f32(self.y)?;
+        Some(Coord(x, y))
+    }
+}
+
 /// Stores states that decide which animation this object should play.
 #[derive(Component, Default, Debug, Clone)]
 pub struct ObjectState {

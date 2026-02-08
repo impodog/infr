@@ -8,7 +8,7 @@ mod session;
 mod prelude;
 use prelude::*;
 
-#[tokio::main]
+#[tokio::main(flavor = "multi_thread", worker_threads = 8)]
 async fn main() {
     tracing_subscriber::fmt::init();
 

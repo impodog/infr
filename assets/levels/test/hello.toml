@@ -8,6 +8,7 @@ tinting = "Red"
 direction = 1
 group = "$Empty"
 coord = [0, 0]
+flags = ["C:Finish:Left/test.level2"]
 
 [[objects]]
 direction = 1
@@ -18,4 +19,4 @@ coord = [3, 0]
 direction = 1
 group = "$Box"
 coord = [5, 3]
-flags = ["S:Always:You", "C:Finish:Test,Level2"]
+flags = ["S:Always:You"]

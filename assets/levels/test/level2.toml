@@ -1,0 +1,9 @@
+requirements = ["basic"]
+
+[meta]
+title = "Test Level 2"
+
+[[objects]]
+direction = 1
+group = "$Empty"
+coord = [1, 1]

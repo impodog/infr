@@ -161,15 +161,17 @@ pub(crate) fn update_color_tinting(
     meta: Res<infr_client::LevelMetadata>,
     mut q_sprite: Query<&mut Sprite, With<PixelRenderSprite>>,
 ) -> Result<()> {
-    if meta.is_changed()
-        && let Some(ref tinting) = meta.tinting
-    {
+    if meta.is_changed() {
         let mut sprite = q_sprite.single_mut()?;
-        if let Some(color) = config::CONFIG.sprites.tinting.get(tinting) {
-            info!("Set color tint: {color:?}");
-            sprite.color = *color;
+        if let Some(ref tinting) = meta.tinting {
+            if let Some(color) = config::CONFIG.sprites.tinting.get(tinting) {
+                info!("Set color tint: {color:?}");
+                sprite.color = *color;
+            } else {
+                error!("Unknown tinting scheme: {tinting}");
+                sprite.color = Default::default();
+            }
         } else {
-            error!("Unknown tinting scheme: {tinting}");
             sprite.color = Default::default();
         }
     }
