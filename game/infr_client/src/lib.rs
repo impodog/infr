@@ -41,7 +41,8 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<CurrentMovements>()
             .init_resource::<CurrentObjects>()
             .init_resource::<CurrentRound>()
-            .init_resource::<PlayerInputQueue>();
+            .init_resource::<PlayerInputQueue>()
+            .init_resource::<StepRequestLevel>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()
@@ -54,21 +55,25 @@ impl Plugin for InfrClientPlugin {
         );
         app.add_systems(
             FixedUpdate,
-            refresh_session.run_if(on_timer(std::time::Duration::from_millis(
+            refresh_session.run_if(on_timer(std::time::Duration::from_secs(
                 config::CONFIG.server.refresh_interval,
             ))),
         );
         app.add_systems(
-            FixedPostUpdate,
+            PostUpdate,
             (finish_load_map,).run_if(in_state(MapState::Loading)),
         );
-        app.add_systems(FixedPreUpdate, (listen_keyboard_input,));
+        app.add_systems(PreUpdate, (listen_keyboard_input,));
         app.add_systems(
-            FixedUpdate,
-            (read_player_input, queue_player_input).run_if(in_state(GlobalState::Game)),
+            PreUpdate,
+            (
+                read_player_input.run_if(in_state(MapState::Free)),
+                queue_player_input,
+            )
+                .run_if(in_state(GlobalState::Game)),
         );
         app.add_systems(
-            FixedUpdate,
+            Update,
             (send_animations, finish_animations)
                 .chain()
                 .run_if(in_state(MapState::Stepping)),

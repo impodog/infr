@@ -20,7 +20,7 @@ impl Position {
     pub fn try_round(&self) -> Option<Coord> {
         fn try_round_f32(value: f32) -> Option<i32> {
             let rounded = value.round();
-            if value - rounded < 1e-6 {
+            if value - rounded < 1e-4 {
                 Some(rounded as i32)
             } else {
                 None

@@ -140,7 +140,7 @@ pub(crate) fn tick_animation(
     time: Res<Time>,
 ) {
     query.par_iter_mut().for_each(|(mut sprite, mut clock)| {
-        if clock.timer.tick(time.delta()).just_finished() {
+        if !clock.timer.duration().is_zero() && clock.timer.tick(time.delta()).just_finished() {
             let Some(texture_atlas) = &mut sprite.texture_atlas else {
                 return;
             };

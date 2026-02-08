@@ -46,7 +46,7 @@ pub(crate) fn update_background_tile(
         ),
     };
     if *range != new_range {
-        info!("Background range from {range:?} to {new_range:?}");
+        // info!("Background range from {range:?} to {new_range:?}");
         q_tiles.par_iter().for_each(|(entity, position)| {
             let x = position.x.round() as i32;
             let y = position.y.round() as i32;

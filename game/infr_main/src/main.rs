@@ -15,5 +15,10 @@ fn main() {
             infr_res::InfrResPlugin,
             infr_level::InfrLevelPlugin,
         ))
+        .add_systems(Startup, |mut commands: Commands| {
+            commands.insert_resource(Time::<Fixed>::from_duration(
+                infr_client::config::CONFIG.client.frame_duration,
+            ));
+        })
         .run();
 }

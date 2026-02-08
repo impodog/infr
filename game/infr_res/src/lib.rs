@@ -20,8 +20,8 @@ impl Plugin for InfrResPlugin {
             .init_resource::<window::WindowTitle>()
             .init_resource::<background::BackgroundRange>();
         app.add_systems(Update, (modify_animation, tick_animation));
-        app.add_systems(FixedUpdate, (select_object_animation,));
-        app.add_systems(FixedLast, framerate::control_framerate);
+        app.add_systems(Update, (select_object_animation,));
+        app.add_systems(Last, framerate::control_framerate);
         app.add_systems(
             Startup,
             (
@@ -41,7 +41,7 @@ impl Plugin for InfrResPlugin {
             ),
         );
         app.add_systems(
-            FixedUpdate,
+            Update,
             (
                 background::update_background_tile,
                 background::reset_background_range,

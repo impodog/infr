@@ -50,14 +50,17 @@ pub(crate) fn read_player_input(
     mut current_round: ResMut<crate::CurrentRound>,
     session: Res<crate::CurrentSession>,
     mut queue: ResMut<PlayerInputQueue>,
+    q_request: Query<(), With<HttpRequest>>,
+    mut request_level: ResMut<StepRequestLevel>,
 ) -> Result<()> {
-    if current_round.actual_round != 0 {
+    if current_round.actual_round != 0 || q_request.iter().next().is_some() {
         return Ok(());
     }
     let Some(direction) = queue.pop_front() else {
         return Ok(());
     };
     info!("Player input direction: {direction:?}");
+    request_level.0 += 1;
     commands
         .spawn(make_post_request(
             "session/step",
@@ -95,17 +98,21 @@ fn observe_step(
     mut current_movements: ResMut<CurrentMovements>,
     mut current_round: ResMut<CurrentRound>,
     session: Res<crate::CurrentSession>,
+    mut request_level: ResMut<StepRequestLevel>,
 ) -> Result<()> {
     let transfer::SendStepResponse { movements } =
         parse_response_and_report!(transfer::SendStepResponse, writer, event);
 
-    info!("Received movements: {:?}", movements);
+    info!("Received movements: {movements:?}");
+
+    request_level.0 -= 1;
 
     // Return to free if no more movements.
     if movements.is_empty() {
         current_movements.0.clear();
         // This is for the animation's turn to end the whole process.
         current_round.actual_round += 1;
+        commands.entity(event.entity).despawn();
         return Ok(());
     }
 
@@ -158,13 +165,13 @@ pub(crate) fn send_animations(
     use transfer::MoveManner;
 
     // Test if there are pending animations.
-    if current_round.actual_round == current_round.animation_round {
+    if current_round.actual_round <= current_round.animation_round {
         return Ok(());
     }
     if current_movements.is_empty() {
-        map_state.set(crate::MapState::Free);
         current_round.actual_round = 0;
-        current_round.animation_round = 0xfeedd095;
+        current_round.animation_round = 0;
+        map_state.set(crate::MapState::Free);
         return Ok(());
     }
 
@@ -237,19 +244,24 @@ pub(crate) fn send_animations(
     Ok(())
 }
 
+/// This is a fix to a unknown bug(probably ehttp) where HttpRequest cannot be counted.
+#[derive(Resource, Debug, Clone, Copy, Default)]
+pub(crate) struct StepRequestLevel(usize);
+
 pub(crate) fn finish_animations(
     mut commands: Commands,
     session: Res<crate::CurrentSession>,
     any_moving: Res<crate::AnyObjectMoving>,
     q_request: Query<(), With<HttpRequest>>,
-    current_round: Res<CurrentRound>,
+    current_round: ResMut<CurrentRound>,
+    mut request_level: ResMut<StepRequestLevel>,
 ) -> Result<()> {
-    if !any_moving.0
-        && q_request.iter().next().is_none()
-        && current_round.actual_round == current_round.animation_round
+    let num = q_request.iter().count();
+    if !any_moving.0 && q_request.iter().next().is_none() && current_round.actual_round == current_round.animation_round && request_level.0 == 0
         // Skip the first round --- provides input to the user in another function.
         && current_round.actual_round != 0
     {
+        request_level.0 += 1;
         commands
             .spawn(make_post_request(
                 "session/step",

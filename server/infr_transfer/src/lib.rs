@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 )]
 pub struct Direction(pub u8);
 impl Direction {
+    pub const UNKNOWN: Self = Self(0);
     pub const RIGHT: Self = Self(1);
     pub const UP: Self = Self(2);
     pub const LEFT: Self = Self(3);
@@ -42,7 +43,7 @@ impl Direction {
         self.0 <= 4
     }
 
-    /// Returns if the direction is one of the four directions (1, 2, 3, 4). This will not include UNKNOWN
+    /// Returns if the direction is one of the four directions (1, 2, 3, 4). This will not include UNKNOWN.
     pub fn is_some(&self) -> bool {
         self.0 <= 4 && self.0 != 0
     }
