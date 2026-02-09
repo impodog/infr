@@ -1,0 +1,261 @@
+requirements = []
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 0, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 1, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 2, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 3, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 1,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 2,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 3,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 4, 5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 3, 5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 2, 5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 1, 5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 1, 6,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 0, 6,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -1, 6,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 6,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 3,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 2,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 1,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -1, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 1, -1,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 1, -2,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 0, -3,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 0, -4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ 0, -5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -1, -5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -2, -5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -3, -5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -4, -5,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -4, -4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -5, -4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -6, -4,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -6, -3,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -6, -2,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -5, -1,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -5, 0,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -5, 1,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -4, 2,]
+flags = [ "S:Always:Stop",]
+
+[[objects]]
+direction = 0
+group = "$Wall"
+coord = [ -3, 2,]
+flags = [ "S:Always:Stop",]
+
+[meta]
+title = "INPUT_TITLE_HERE"

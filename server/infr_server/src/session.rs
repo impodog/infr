@@ -146,7 +146,7 @@ async fn load_session(
         meta,
         objects,
         requirements,
-    } = toml::from_str(&content).map_err(|err| {
+    } = serde_json::from_str(&content).map_err(|err| {
         transfer::ServerError::BadRequest(format!("Unable to parse level config: {err}"))
     })?;
 

@@ -1,0 +1,28 @@
+requirements = [
+  "basic",
+]
+
+[[objects]]
+direction = 1
+group = "$Empty"
+coord = [
+  1,
+  1,
+]
+flags = [
+  "S:Always:You",
+]
+
+[[objects]]
+direction = 1
+group = "$Omega"
+coord = [
+  1,
+  2,
+]
+flags = [
+  "C:Finish:Right/test.hello",
+]
+
+[meta]
+title = "Test Level 2"

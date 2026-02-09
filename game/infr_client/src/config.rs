@@ -94,7 +94,7 @@ path_wrapper!(LevelPackWrapper, LevelPack);
 impl LevelPackWrapper {
     pub fn find(&self, name: &str) -> Option<PathBuf> {
         for path in self.0.levels.iter() {
-            let target = self.1.join(path).join(name).with_extension("toml");
+            let target = self.1.join(path).join(name).with_extension("json");
             if target.exists() {
                 return Some(target);
             }

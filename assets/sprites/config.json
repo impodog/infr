@@ -3,7 +3,8 @@
     "box/box.json",
     "empty/empty.json",
     "back/back.json",
-    "omega/omega.json"
+    "omega/omega.json",
+    "wall/wall.json"
   ],
   "tinting": {
     "Red": {
