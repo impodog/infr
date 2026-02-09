@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import time
 from copy import deepcopy
@@ -41,12 +42,18 @@ STANDARD_OBJECT_SIZE = 32
 DEFAULT_OBJECT_SIZE = 64
 ALIGN_LINE_COLOR = (100, 100, 100)
 HOVER_COLOR = (20, 100, 100, 120)
+ARROW_COLOR = (100, 150, 255, 100)
 FONT_SIZE = 24
 UI_SIZE = sub_vec(SCREEN_SIZE, EDITOR_SIZE)
 UI_DISTANCE = 30
 UI_SELECTED_COLOR = (100, 255, 100)
 UI_UNSELECTED_COLOR = (255, 255, 255)
 UI_INFO_COLOR = (200, 200, 200)
+DIRECTIONS = {1: (1, 0), 2: (0, 1), 3: (-1, 0), 4: (0, -1)}
+PYGAME_DIRECTIONS = {1: (1, 0), 2: (0, -1), 3: (-1, 0), 4: (0, 1)}
+DIRECTION_NAMES = {1: "Right", 2: "Up", 3: "Left", 4: "Down"}
+HALF_PI = math.pi / 2
+QUART_PI = math.pi / 4
 
 pygame.init()
 screen = pygame.display.set_mode(SCREEN_SIZE)
@@ -56,17 +63,27 @@ default_sprite = pygame.image.load("assets/sprites/" + SPRITES["Empty"]).convert
 font = pygame.font.Font("assets/fonts/JetbrainsMono.ttf", FONT_SIZE)
 
 
-def decide_sprite(nature: str) -> pygame.Surface:
+def decide_sprite(nature: str, direction: int) -> pygame.Surface:
     global loaded_sprites
     if nature not in SPRITES:
-        nature = nature[1:]
+        if direction_name := DIRECTION_NAMES.get(direction):
+            if (nature + direction_name) in SPRITES:
+                nature = nature + direction_name
+            elif (nature[1:] + direction_name) in SPRITES:
+                nature = nature[1:] + direction_name
+        if nature not in SPRITES:
+            nature = nature[1:]
     if sprite := loaded_sprites.get(nature):
         return sprite
     else:
         if path := SPRITES.get(nature):
+            if isinstance(path, tuple):
+                path, start = path
+            else:
+                start = (0, 0)
             path = "assets/sprites/" + path
             sprite = pygame.image.load(path).convert()
-            sprite.set_clip((0, 0, 32, 32))
+            sprite = sprite.subsurface(pygame.Rect((start[0], start[1]), (32, 32)))
             loaded_sprites[nature] = sprite
             return sprite
         else:
@@ -121,8 +138,40 @@ def main():
             current_pos,
         )
 
+    def show_list_ui(prompt: str, arr: list):
+        nonlocal ui_selected
+        count = 0
+        for elem in arr:
+            show_selectable_ui(f"{prompt} {count} = {elem}")
+            if ui_selected == current_ui:
+                if right_clicked:
+                    del arr[count]
+                    ui_selected = None
+                else:
+                    arr[count] = input_on(elem)
+            next_ui()
+            count += 1
+        show_selectable_ui(f"[Add {prompt.lower()}]")
+        if ui_selected == current_ui:
+            arr.append("")
+            ui_selected = None
+
     def equal_coord(x, y):
         return x[0] == y[0] and x[1] == y[1]
+
+    def save_data():
+        nonlocal args, data
+        # Condense the output dict
+        for object in data["objects"]:
+            if flags := object.get("flags"):
+                for index in range(len(flags) - 1, -1, -1):
+                    if len(flags[index]) == 0:
+                        del flags[index]
+                if len(flags) == 0:
+                    del object["flags"]
+
+        with open(args.file, "w") as file:
+            json.dump(data, file)
 
     pygame.init()
 
@@ -135,8 +184,8 @@ def main():
 
     if not os.path.exists(args.file):
         data = {
-            "requirements": [],
-            "meta": {"title": "INPUT_TITLE_HERE"},
+            "requirements": ["basic"],
+            "meta": {"title": "INPUT_TITLE_HERE", "flags": []},
             "objects": [],
         }
     else:
@@ -212,14 +261,23 @@ def main():
                 pressed.add(event.key)
                 if event.key == pygame.K_ESCAPE:
                     selected = dragged = ui_selected = None
+                elif event.key == pygame.K_s:
+                    save_data()
             elif event.type == pygame.KEYUP:
                 pressed.remove(event.key)
 
         ctrl = pygame.K_LCTRL in pressed or pygame.K_RCTRL in pressed
-        shift = pygame.K_LSHIFT in pressed or pygame.K_RSHIFT in pressed
+        shift = (
+            pygame.K_LSHIFT in pressed or pygame.K_RSHIFT in pressed
+        ) and not ui_selected
 
         # When right click on an object, it is deleted.
-        if right_clicked and selected and equal_coord(hover_coord, selected["coord"]):
+        if (
+            right_clicked
+            and selected
+            and hover_coord
+            and equal_coord(hover_coord, selected["coord"])
+        ):
             count = 0
             for object in data["objects"]:
                 if object == selected:
@@ -238,6 +296,8 @@ def main():
                 count += 1
             dels.reverse()
             for index in dels:
+                if data["objects"][index] == selected:
+                    selected = None
                 del data["objects"][index]
 
         # When clicking / dragging on nothing, objects are added
@@ -253,6 +313,23 @@ def main():
                     data["objects"].append(object)
                 else:
                     data["objects"].append(new_object(hover_coord))
+
+        if shift and selected:
+            selected_pos = coord_to_rect(selected["coord"])
+            diff = sub_vec(mouse_pos, selected_pos)
+            if diff[0] ** 2 + diff[1] ** 2 <= object_size**2:
+                selected["direction"] = 0
+            else:
+                angle = math.atan2(diff[1], diff[0])
+
+                if -QUART_PI < angle < QUART_PI:
+                    selected["direction"] = 1
+                elif -3 * QUART_PI < angle < -QUART_PI:
+                    selected["direction"] = 2
+                elif QUART_PI < angle < 3 * QUART_PI:
+                    selected["direction"] = 4
+                else:
+                    selected["direction"] = 3
 
         # Draw alignment lines
         x_base = displacement[0] + object_size / 2
@@ -274,15 +351,48 @@ def main():
             pygame.draw.line(screen, ALIGN_LINE_COLOR, (0, y), (EDITOR_SIZE[0], y))
             y -= object_size
 
-        # Blit objects
+        # Blit objects and arrow indicators
+        arrows = list()
         for object in data["objects"]:
             rect = coord_to_rect(object["coord"])
-            sprite = decide_sprite(object["group"])
+            sprite = decide_sprite(object["group"], object["direction"])
             scaled = pygame.transform.scale(sprite, (object_size, object_size))
             screen.blit(scaled, rect)
+            if 1 <= object["direction"] <= 4:
+                arrows.append((object["direction"], rect))
+        for direction, rect in arrows:
+            surface = pygame.Surface((object_size, object_size), pygame.SRCALPHA)
+            midpoint = (object_size // 2, object_size // 2)
+            if direction == 1:
+                pygame.draw.polygon(
+                    surface, ARROW_COLOR, [(0, 0), midpoint, (0, object_size)]
+                )
+            elif direction == 2:
+                pygame.draw.polygon(
+                    surface,
+                    ARROW_COLOR,
+                    [(0, object_size), midpoint, (object_size, object_size)],
+                )
+            elif direction == 3:
+                pygame.draw.polygon(
+                    surface,
+                    ARROW_COLOR,
+                    [(object_size, 0), midpoint, (object_size, object_size)],
+                )
+            elif direction == 4:
+                pygame.draw.polygon(
+                    surface,
+                    ARROW_COLOR,
+                    [(0, 0), midpoint, (object_size, 0)],
+                )
+            disp = mul_vec(PYGAME_DIRECTIONS[direction], object_size)
+            arrow_rect = rect.copy()
+            arrow_rect.x += disp[0]
+            arrow_rect.y += disp[1]
+            screen.blit(surface, arrow_rect)
 
         # Draw hover indicator
-        if hover_coord:
+        if not ctrl and not shift and hover_coord:
             rect = coord_to_rect(hover_coord)
             surface = pygame.Surface((object_size, object_size), pygame.SRCALPHA)
             surface.fill(HOVER_COLOR)
@@ -306,32 +416,43 @@ def main():
             )
             next_ui()
             next_ui()
+            if 1 <= selected["direction"] <= 4:
+                screen.blit(
+                    font.render(
+                        f"Direction = {DIRECTION_NAMES[selected['direction']]}",
+                        True,
+                        UI_INFO_COLOR,
+                    ),
+                    current_pos,
+                )
+            else:
+                screen.blit(
+                    font.render(
+                        "Direction = None",
+                        True,
+                        UI_INFO_COLOR,
+                    ),
+                    current_pos,
+                )
+            next_ui()
+            next_ui()
             show_selectable_ui(f"Group = {selected['group']}")
             if ui_selected == current_ui:
                 selected["group"] = input_on(selected["group"])
             next_ui()
             next_ui()
-            count = 0
-            for flag in selected["flags"]:
-                show_selectable_ui(f"Flag {count} = {flag}")
-                if ui_selected == current_ui:
-                    if right_clicked:
-                        del selected["flags"][count]
-                        ui_selected = None
-                    else:
-                        selected["flags"][count] = input_on(flag)
-                next_ui()
-                count += 1
-            show_selectable_ui("[Add flag]")
-            if ui_selected == current_ui:
-                selected["flags"].append("")
-                ui_selected = None
+            show_list_ui("Flag", selected["flags"])
             next_ui()
         else:
             show_selectable_ui(f"Title = {data['meta']['title']}")
             if ui_selected == current_ui:
                 data["meta"]["title"] = input_on(data["meta"]["title"])
             next_ui()
+            next_ui()
+            show_list_ui("Req", data["requirements"])
+            next_ui()
+            next_ui()
+            show_list_ui("Flags", data["meta"]["flags"])
 
         # Post-loop updates and control framerate
         pygame.display.flip()
@@ -340,14 +461,7 @@ def main():
         if delta_time < 1 / FRAMERATE:
             time.sleep(1 / FRAMERATE - delta_time)
 
-    # Condense the output dict
-    for object in data["objects"]:
-        if flags := object.get("flags"):
-            if len(flags) == 0:
-                del object["flags"]
-
-    with open(args.file, "w") as file:
-        json.dump(data, file)
+    save_data()
 
 
 if __name__ == "__main__":
