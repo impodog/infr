@@ -4,7 +4,7 @@ use infr_client::{Position, config};
 
 /// Marks a background tile that marks the game board.
 #[derive(Component)]
-#[require(Position, crate::Animation)]
+#[require(Position, crate::Animation, infr_client::SessionOnly)]
 pub struct BackgroundTile;
 
 #[derive(Resource, Debug, Clone, PartialEq, Eq)]

@@ -26,7 +26,7 @@ def mul_vec(v, k):
 
 
 def new_object(coord) -> dict:
-    return {"direction": 0, "group": "$Empty", "coord": coord, "flags": []}
+    return {"direction": 0, "group": "", "coord": coord, "flags": []}
 
 
 FRAMERATE = 60.0
@@ -35,6 +35,10 @@ SPRITES = {
     "$Box": "box/box.png",
     "$Omega": "omega/omega.png",
     "$Wall": "wall/wall.png",
+    "ArrowRight": ("arrow/arrow.png", (0, 0)),
+    "ArrowUp": ("arrow/arrow.png", (0, 32)),
+    "ArrowLeft": ("arrow/arrow.png", (0, 64)),
+    "ArrowDown": ("arrow/arrow.png", (0, 96)),
 }
 SCREEN_SIZE = (1920, 1080)
 EDITOR_SIZE = (1500, 1080)
@@ -201,7 +205,6 @@ def main():
     loop = True
     selected = None
     dragged = None
-    selection_pos = None
     ui_selected = None
     pressed = set()
     while loop:

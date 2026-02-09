@@ -9,6 +9,8 @@ pub mod background;
 pub mod camera;
 pub mod window;
 
+mod info;
+
 use bevy::prelude::*;
 
 pub struct InfrResPlugin;
@@ -48,5 +50,7 @@ impl Plugin for InfrResPlugin {
             )
                 .run_if(in_state(infr_client::GlobalState::Game)),
         );
+        app.add_systems(Update, info::play_morph_effect);
+        app.add_systems(OnExit(infr_client::MapState::Loading), info::show_title);
     }
 }

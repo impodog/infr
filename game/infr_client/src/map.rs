@@ -35,10 +35,15 @@ pub struct LoadMap {
     pub name: String,
 }
 
+/// Marks an entity to be removed when switching sessions.
+#[derive(Component, Default)]
+pub struct SessionOnly;
+
 pub(crate) fn start_load_map(
     mut reader: MessageReader<LoadMap>,
     mut commands: Commands,
     mut map_state: ResMut<NextState<crate::MapState>>,
+    q_session_only: Query<Entity, With<SessionOnly>>,
 ) -> Result<()> {
     for message in reader.read() {
         let Some(path) = config::CONFIG.find_level(&message.pack, &message.name) else {
@@ -51,6 +56,9 @@ pub(crate) fn start_load_map(
         let request = make_post_request("session/load", &transfer::LoadSessionRequest { path })?;
         commands.spawn(request).observe(observe_load_map);
         map_state.set(crate::MapState::Loading);
+        for entity in q_session_only.iter() {
+            commands.entity(entity).despawn();
+        }
     }
     Ok(())
 }
@@ -131,7 +139,7 @@ fn observe_level_map(
 }
 
 pub(crate) fn finish_load_map(
-    q_request: Query<(), With<HttpRequest>>,
+    q_request: Query<(), With<RequestMarker>>,
     mut map_state: ResMut<NextState<crate::MapState>>,
 ) {
     if q_request.iter().next().is_none() {

@@ -5,7 +5,14 @@ use bevy::prelude::*;
 
 /// Entry struct for object entities.
 #[derive(Component, Default, Debug, Clone, Copy)]
-#[require(ObjectState, Position, Sprite, MovementState, ObjectFlags)]
+#[require(
+    ObjectState,
+    Position,
+    Sprite,
+    MovementState,
+    ObjectFlags,
+    crate::SessionOnly
+)]
 pub struct Object {
     pub id: ObjectId,
     pub session_id: SessionId,

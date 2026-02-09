@@ -1,1 +1,1 @@
-{"requirements": ["basic"], "meta": {"title": "JSON Level", "flags": []}, "objects": [{"direction": 1, "group": "$Wall", "coord": [3, 3], "flags": ["S:Always:You"]}]}
+{"requirements": ["basic"], "meta": {"title": "JSON Level", "flags": []}, "objects": [{"direction": 1, "group": "=Arrow", "coord": [0, 2], "flags": []}]}

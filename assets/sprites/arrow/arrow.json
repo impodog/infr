@@ -1,0 +1,36 @@
+{
+  "sprites": {
+    "ArrowRight": [
+      {
+        "path": "arrow.png",
+        "count": 2,
+        "interval": 1000,
+        "offset": [0, 0]
+      }
+    ],
+    "ArrowUp": [
+      {
+        "path": "arrow.png",
+        "count": 2,
+        "interval": 1000,
+        "offset": [0, 32]
+      }
+    ],
+    "ArrowLeft": [
+      {
+        "path": "arrow.png",
+        "count": 2,
+        "interval": 1000,
+        "offset": [0, 64]
+      }
+    ],
+    "ArrowDown": [
+      {
+        "path": "arrow.png",
+        "count": 2,
+        "interval": 1000,
+        "offset": [0, 96]
+      }
+    ]
+  }
+}

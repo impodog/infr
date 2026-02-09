@@ -2,12 +2,14 @@ use bevy::prelude::*;
 use bevy_ehttp::prelude::*;
 
 fn main() {
+    let run_path = std::path::Path::new(".").canonicalize().unwrap();
     App::new()
         .add_plugins((
             HttpPlugin,
             DefaultPlugins
                 .set(AssetPlugin {
                     unapproved_path_mode: bevy::asset::UnapprovedPathMode::Allow,
+                    file_path: run_path.to_string_lossy().into_owned(),
                     ..Default::default()
                 })
                 .set(ImagePlugin::default_nearest()),

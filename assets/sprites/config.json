@@ -4,7 +4,8 @@
     "empty/empty.json",
     "back/back.json",
     "omega/omega.json",
-    "wall/wall.json"
+    "wall/wall.json",
+    "arrow/arrow.json"
   ],
   "tinting": {
     "Red": {

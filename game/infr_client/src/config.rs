@@ -224,6 +224,20 @@ impl SpriteConfig {
     }
 }
 
+#[derive(Deserialize, Debug, Clone)]
+pub struct FontConfig {
+    pub ui_font: PathBuf,
+    pub text_font: PathBuf,
+}
+impl Default for FontConfig {
+    fn default() -> Self {
+        Self {
+            ui_font: "./assets/fonts/Crimson.ttf".into(),
+            text_font: "./assets/fonts/JetbrainsMono.ttf".into(),
+        }
+    }
+}
+
 /// Serde entry point for the config file.
 #[derive(Deserialize, Debug, Clone, Default)]
 pub struct ConfigFile {
@@ -240,6 +254,8 @@ pub struct ConfigFile {
     pub sprites_path: PathBuf,
     #[serde(skip)]
     pub sprites: SpriteConfig,
+    #[serde(default)]
+    pub fonts: FontConfig,
     #[serde(default = "default_user_data_path")]
     pub user_data_path: PathBuf,
 }
