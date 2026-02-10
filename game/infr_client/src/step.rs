@@ -137,6 +137,7 @@ fn observe_step(
             &transfer::GetObjectsRequest {
                 session_id: session.0,
                 objects: requested_objects,
+                add_changed: true,
             },
         )?)
         .observe(observe_load_map_when_moving);

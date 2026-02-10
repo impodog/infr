@@ -1,0 +1,6 @@
+{
+  "sprites": {
+    "BoxIns": [{ "path": "box.png", "count": 2 }],
+    "BoxSym": [{ "path": "box.png", "count": 2, "offset": [0, 32] }]
+  }
+}

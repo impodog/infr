@@ -1,0 +1,5 @@
+{
+  "sprites": {
+    "PushSym": [{ "path": "push.png", "count": 2, "offset": [0, 0] }]
+  }
+}

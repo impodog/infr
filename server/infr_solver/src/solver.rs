@@ -541,7 +541,9 @@ impl Map {
             if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol) {
                 self.push_object_state(index);
                 for group in relevant_groups.iter() {
+                    println!("Prove {group} for nature {}", object.group);
                     if self.prove_variable(group) {
+                        println!("YES");
                         current_groups.insert(group.to_string());
                     }
                 }

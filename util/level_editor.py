@@ -31,14 +31,16 @@ def new_object(coord) -> dict:
 
 FRAMERATE = 60.0
 SPRITES = {
-    "Empty": "empty/empty.png",
-    "$Box": "box/box.png",
-    "$Omega": "omega/omega.png",
-    "$Wall": "wall/wall.png",
-    "ArrowRight": ("arrow/arrow.png", (0, 0)),
-    "ArrowUp": ("arrow/arrow.png", (0, 32)),
-    "ArrowLeft": ("arrow/arrow.png", (0, 64)),
-    "ArrowDown": ("arrow/arrow.png", (0, 96)),
+    "Empty": "empty",
+    "$Box": "box",
+    "@Box": ("box", (0, 32)),
+    "$Omega": "omega",
+    "$Wall": "wall",
+    "ArrowRight": ("arrow", (0, 0)),
+    "ArrowUp": ("arrow", (0, 32)),
+    "ArrowLeft": ("arrow", (0, 64)),
+    "ArrowDown": ("arrow", (0, 96)),
+    "@Push": "push",
 }
 SCREEN_SIZE = (1920, 1080)
 EDITOR_SIZE = (1500, 1080)
@@ -58,12 +60,30 @@ PYGAME_DIRECTIONS = {1: (1, 0), 2: (0, -1), 3: (-1, 0), 4: (0, 1)}
 DIRECTION_NAMES = {1: "Right", 2: "Up", 3: "Left", 4: "Down"}
 HALF_PI = math.pi / 2
 QUART_PI = math.pi / 4
+ALL_SPRITE_PATHS = dict()
+
+for dir, _, files in os.walk("assets/sprites"):
+    for path in files:
+        path = os.path.join(dir, path)
+        if os.path.isfile(path) and path.endswith(".png"):
+            name = os.path.basename(path)[:-4]
+            ALL_SPRITE_PATHS[name] = path
+            print(f"Insert {name} = {path}")
+
+new_sprites = dict()
+for key, value in SPRITES.items():
+    if isinstance(value, tuple):
+        new_sprites[key] = (ALL_SPRITE_PATHS[value[0]], value[1])
+    else:
+        new_sprites[key] = ALL_SPRITE_PATHS[value]
+SPRITES = new_sprites
+
 
 pygame.init()
 screen = pygame.display.set_mode(SCREEN_SIZE)
 
 loaded_sprites = dict()
-default_sprite = pygame.image.load("assets/sprites/" + SPRITES["Empty"]).convert()
+default_sprite = pygame.image.load(SPRITES["Empty"]).convert()
 font = pygame.font.Font("assets/fonts/JetbrainsMono.ttf", FONT_SIZE)
 
 
@@ -85,7 +105,6 @@ def decide_sprite(nature: str, direction: int) -> pygame.Surface:
                 path, start = path
             else:
                 start = (0, 0)
-            path = "assets/sprites/" + path
             sprite = pygame.image.load(path).convert()
             sprite = sprite.subsurface(pygame.Rect((start[0], start[1]), (32, 32)))
             loaded_sprites[nature] = sprite
@@ -171,8 +190,6 @@ def main():
                 for index in range(len(flags) - 1, -1, -1):
                     if len(flags[index]) == 0:
                         del flags[index]
-                if len(flags) == 0:
-                    del object["flags"]
 
         with open(args.file, "w") as file:
             json.dump(data, file)
@@ -264,7 +281,7 @@ def main():
                 pressed.add(event.key)
                 if event.key == pygame.K_ESCAPE:
                     selected = dragged = ui_selected = None
-                elif event.key == pygame.K_s:
+                elif event.key == pygame.K_s and hover_coord:
                     save_data()
             elif event.type == pygame.KEYUP:
                 pressed.remove(event.key)
@@ -388,7 +405,7 @@ def main():
                     ARROW_COLOR,
                     [(0, 0), midpoint, (object_size, 0)],
                 )
-            disp = mul_vec(PYGAME_DIRECTIONS[direction], object_size)
+            disp = mul_vec(PYGAME_DIRECTIONS[direction], object_size // 4 * 3)
             arrow_rect = rect.copy()
             arrow_rect.x += disp[0]
             arrow_rect.y += disp[1]

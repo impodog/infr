@@ -190,6 +190,8 @@ pub type GetMapRequest = SessionId;
 pub struct GetObjectsRequest {
     pub session_id: SessionId,
     pub objects: Vec<ObjectId>,
+    /// When set to true, the server will add extra objects whose features changed.
+    pub add_changed: bool,
 }
 
 pub type SnapshotId = u32;
