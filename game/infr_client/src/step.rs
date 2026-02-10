@@ -80,7 +80,7 @@ pub(crate) fn read_player_input(
 
     // Resets object display order
     q_objects.par_iter_mut().for_each(|mut transform| {
-        transform.translation.z = 0.0;
+        transform.translation.z = -0.1;
     });
 
     request_level.0 += 1;
@@ -99,6 +99,10 @@ pub(crate) fn read_player_input(
     Ok(())
 }
 
+/// Stores the snapshot id before the player input, for quick reverts.
+#[derive(Resource, Debug, Clone, Default, Deref, DerefMut)]
+pub struct PreInputSnapshot(pub transfer::SnapshotId);
+
 /// Temporarily stores all movements while in a single step.
 #[derive(Resource, Debug, Clone, Default, Deref, DerefMut)]
 pub struct CurrentMovements(pub HashMap<u32, transfer::Movement>);
@@ -114,6 +118,7 @@ pub struct CurrentRound {
     pub animation_round: usize,
 }
 
+#[allow(clippy::too_many_arguments)]
 fn observe_step(
     event: On<ResponseString>,
     mut commands: Commands,
@@ -122,9 +127,16 @@ fn observe_step(
     mut current_round: ResMut<CurrentRound>,
     session: Res<crate::CurrentSession>,
     mut request_level: ResMut<StepRequestLevel>,
+    mut pre_input_snapshot: ResMut<PreInputSnapshot>,
 ) -> Result<()> {
-    let transfer::SendStepResponse { movements } =
-        parse_response_and_report!(transfer::SendStepResponse, writer, event);
+    let transfer::SendStepResponse {
+        movements,
+        snapshot_id,
+    } = parse_response_and_report!(transfer::SendStepResponse, writer, event);
+
+    if let Some(snapshot_id) = snapshot_id {
+        pre_input_snapshot.0 = snapshot_id;
+    }
 
     info!("Received movements: {movements:?}");
 

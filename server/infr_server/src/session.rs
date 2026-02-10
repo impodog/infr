@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use std::collections::BTreeSet;
 use std::sync::atomic::{self, AtomicU32};
 use std::time::Duration;
 
@@ -11,6 +12,11 @@ pub struct Session {
     // pub requirements: Vec<String>,
     pub snapshots: HashMap<transfer::SnapshotId, Snapshot>,
     pub current_snapshot_id: transfer::SnapshotId,
+
+    /// Before each input a snapshot is taken, and it is stored until the next input.
+    pub per_input_snapshot_id: Option<transfer::SnapshotId>,
+    pub prev_groups: Option<HashMap<transfer::ObjectId, u128>>,
+    pub changed: Vec<transfer::ObjectId>,
 
     pub layout: Layout,
     pub input_count: u32,
@@ -39,6 +45,21 @@ fn current_time() -> Duration {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .expect("Time should't be before epoch")
+}
+
+/// Hash the object's groups for quick comparison.
+fn hash_groups(groups: &Vec<String>) -> u128 {
+    const ELEMENT_MULT: u128 = 13131;
+    const CHARACTER_MULT: u128 = 131;
+    let mut result = 0u128;
+    for group in groups.iter() {
+        for ch in group.chars() {
+            result = result.wrapping_add(ch as u128);
+            result = result.wrapping_mul(CHARACTER_MULT);
+        }
+        result = result.wrapping_mul(ELEMENT_MULT);
+    }
+    result
 }
 
 impl Session {
@@ -76,16 +97,35 @@ impl Session {
     }
 
     /// Attempts to initialize the map, if not already.
+    ///
+    /// Returns all objects which
     pub fn initialize(&mut self) -> Result<(), transfer::ServerError> {
         if self.initialized {
             return Ok(());
         }
+
         // As the map is initialized, groups will be proven, allowing /map action.
         self.layout
             .init_map()
             .map_err(|err| self.convert_error(err))?;
         self.layout.map.revert();
         self.initialized = true;
+
+        // Update changed groups.
+        let prev_groups = self.prev_groups.get_or_insert_default();
+        let mut new_groups = HashMap::new();
+        self.changed.clear();
+        for (object, groups) in self.layout.map.object_and_groups() {
+            let new_hash = hash_groups(groups);
+            new_groups.insert(object.id(), new_hash);
+            if prev_groups
+                .get(&object.id())
+                .is_none_or(|old_hash| *old_hash != new_hash)
+            {
+                self.changed.push(object.id());
+            }
+        }
+        self.prev_groups = Some(new_groups);
         Ok(())
     }
 }
@@ -207,6 +247,9 @@ async fn load_session(
         meta,
         snapshots: HashMap::new(),
         current_snapshot_id: 1,
+        per_input_snapshot_id: None,
+        prev_groups: None,
+        changed: Default::default(),
         layout,
         input_count: 0,
         round: 0,
@@ -275,9 +318,17 @@ async fn get_objects(
     let mut session = session_ref.lock().unwrap();
 
     session.initialize()?;
-    let map = transfer::Map::from_map_objects(&session.layout.map, req.0.objects).map_err(
-        |object_id| transfer::ServerError::BadRequest(format!("Unknown object id: {}", object_id)),
-    )?;
+    let objects = if req.add_changed {
+        let mut objects = req.0.objects;
+        objects.extend(session.changed.iter().copied());
+        objects
+    } else {
+        req.0.objects
+    };
+    let map =
+        transfer::Map::from_map_objects(&session.layout.map, objects).map_err(|object_id| {
+            transfer::ServerError::BadRequest(format!("Unknown object id: {}", object_id))
+        })?;
 
     Ok(map.into())
 }
@@ -295,7 +346,7 @@ async fn step(
 
     let session_ref = state.0.get_session(session_id)?;
 
-    let movements = {
+    let (movements, snapshot_id) = {
         let signal = {
             let mut session = session_ref.lock().unwrap();
             let direction = Option::<Direction>::from(direction);
@@ -311,6 +362,7 @@ async fn step(
                 if session.can_input {
                     return Ok(transfer::SendStepResponse {
                         movements: Vec::new(),
+                        snapshot_id: None,
                     }
                     .into());
                 }
@@ -322,9 +374,23 @@ async fn step(
             }
         };
 
+        let snapshot_id = if direction.is_some() {
+            let Json(snapshot_id) = take_snapshot(state.clone(), session_id.into()).await?;
+            Some(snapshot_id)
+        } else {
+            None
+        };
+
         let session_ref = session_ref.clone();
         let task = async move {
             let mut session = session_ref.lock().unwrap();
+            // Update to new snapshot id when input.
+            if let Some(snapshot_id) = snapshot_id {
+                if let Some(prev_snapshot_id) = session.per_input_snapshot_id {
+                    session.snapshots.remove(&prev_snapshot_id);
+                }
+                session.per_input_snapshot_id = Some(snapshot_id);
+            }
             Result::<Vec<Movement>, transfer::ServerError>::Ok(
                 session
                     .layout
@@ -340,7 +406,7 @@ async fn step(
         let Ok(movements_result) = tokio::time::timeout(Duration::from_secs(3), task).await else {
             return Err(transfer::ServerError::ServerSide("Stepping timed out".to_owned()).into());
         };
-        movements_result?
+        (movements_result?, snapshot_id)
     };
 
     let mut session = session_ref.lock().unwrap();
@@ -356,6 +422,7 @@ async fn step(
 
     Ok(transfer::SendStepResponse {
         movements: movements.into_iter().map(Into::into).collect::<Vec<_>>(),
+        snapshot_id,
     }
     .into())
 }
@@ -428,6 +495,8 @@ async fn revert_snapshot(
     session.input_count = input_count;
     session.round = round;
     session.can_input = can_input;
+    // Also clears prev_groups(used for checking changed objects) - but the client should retrieve all objects after revert.
+    session.prev_groups = None;
     // Since only the objects were copied, we need to refresh map state
     session.initialized = false;
 

@@ -20,7 +20,8 @@ impl Plugin for InfrResPlugin {
         app.init_resource::<AnimationAtlasHandles>()
             .init_resource::<camera::VirtualResolution>()
             .init_resource::<window::WindowTitle>()
-            .init_resource::<background::BackgroundRange>();
+            .init_resource::<background::BackgroundRange>()
+            .init_resource::<info::TitleSpawned>();
         app.add_systems(Update, (modify_animation, tick_animation));
         app.add_systems(Update, (select_object_animation,));
         app.add_systems(Last, framerate::control_framerate);
@@ -57,7 +58,11 @@ impl Plugin for InfrResPlugin {
                 info::accelerate_loading_when_loaded,
             ),
         );
-        app.add_systems(OnExit(infr_client::MapState::Loading), info::show_title);
+        app.add_systems(
+            OnExit(infr_client::MapState::Loading),
+            info::reset_title_spawned,
+        );
+        app.add_systems(Update, info::show_title);
         app.add_systems(OnEnter(infr_client::MapState::Loading), info::show_loading);
     }
 }

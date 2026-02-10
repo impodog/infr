@@ -1,6 +1,6 @@
 //! This file shows level related information.
 
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::Text2dShadow};
 use std::time::Duration;
 
 /// Marks the title text.
@@ -23,12 +23,13 @@ pub(crate) fn play_morph_effect(
         &MorphEffect,
         Option<&mut BackgroundColor>,
         Option<&mut TextColor>,
+        Option<&mut Text2dShadow>,
         Option<&mut Sprite>,
     )>,
     time: Res<Time>,
 ) {
     q_morph_effect.par_iter_mut().for_each(
-        |(entity, morph_effect, background_color, text_color, sprite)| {
+        |(entity, morph_effect, background_color, text_color, text_2d_shadow, sprite)| {
             let x = (time.elapsed() - morph_effect.start_time).as_secs_f32()
                 / morph_effect.total_time.as_secs_f32()
                 * 2.0;
@@ -48,6 +49,9 @@ pub(crate) fn play_morph_effect(
                 if let Some(mut text_color) = text_color {
                     *text_color = text_color.with_alpha(alpha).into();
                 }
+                if let Some(mut text_2d_shadow) = text_2d_shadow {
+                    text_2d_shadow.color = text_2d_shadow.color.with_alpha(alpha);
+                }
                 if let Some(mut sprite) = sprite {
                     sprite.color = sprite.color.with_alpha(alpha);
                 }
@@ -60,16 +64,30 @@ pub(crate) fn play_morph_effect(
     );
 }
 
+#[derive(Resource, Default, Deref, DerefMut)]
+pub(crate) struct TitleSpawned(bool);
+
+pub(crate) fn reset_title_spawned(mut value: ResMut<TitleSpawned>) {
+    value.0 = false;
+}
+
 pub(crate) fn show_title(
     mut commands: Commands,
     time: Res<Time>,
     meta: Res<infr_client::LevelMetadata>,
     asset_server: Res<AssetServer>,
+    mut title_spawned: ResMut<TitleSpawned>,
+    q_loading: Query<(), With<LoadingMarker>>,
 ) {
+    if **title_spawned || q_loading.iter().next().is_some() {
+        return;
+    }
+    **title_spawned = true;
     commands.spawn((
         TitleMarker,
         Text2d::new(meta.title.clone()),
         TextColor(Color::Srgba(Srgba::WHITE)),
+        Text2dShadow::default(),
         TextFont {
             font: asset_server.load(infr_client::config::CONFIG.fonts.text_font.clone()),
             font_size: 150.0,
@@ -106,8 +124,8 @@ pub(crate) fn show_loading(mut commands: Commands, time: Res<Time>) {
         Transform::from_translation(Vec3::new(0.0, 0.0, 13.37)),
         MorphEffect {
             start_time: time.elapsed(),
-            total_time: Duration::from_secs(1),
-            out_only: false,
+            total_time: Duration::from_secs_f32(1.5),
+            out_only: true,
         },
         crate::camera::DISPLAY_RENDER_LAYER,
     ));

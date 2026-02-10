@@ -181,6 +181,8 @@ pub struct SendStepRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SendStepResponse {
     pub movements: Vec<Movement>,
+    /// When there is a player input, a snapshot is taken before any movements performed.
+    pub snapshot_id: Option<SnapshotId>,
 }
 
 pub type GetMapRequest = SessionId;

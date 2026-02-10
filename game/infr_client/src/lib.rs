@@ -43,7 +43,8 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<CurrentRound>()
             .init_resource::<PlayerInputQueue>()
             .init_resource::<StepRequestLevel>()
-            .init_resource::<ActionCount>();
+            .init_resource::<ActionCount>()
+            .init_resource::<PreInputSnapshot>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()

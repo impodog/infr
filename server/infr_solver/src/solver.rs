@@ -552,7 +552,9 @@ impl Map {
             self.revert();
             // Special case: The object's natural group is not in the relevant groups,
             // but we still need to add it.
-            if !relevant_groups.contains(&object.group) {
+            if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol)
+                && !relevant_groups.contains(&object.group)
+            {
                 current_groups.insert(object.group.clone());
             }
             for flag in object.search_flags("S:Always:") {

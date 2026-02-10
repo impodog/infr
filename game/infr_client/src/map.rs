@@ -155,3 +155,7 @@ pub(crate) fn refresh_session(mut commands: Commands, session: Res<CurrentSessio
     }
     Ok(())
 }
+
+/// Message to completely reload all objects of the map.
+#[derive(Message, Default)]
+pub struct ReloadMap;

@@ -1,0 +1,1 @@
+{"requirements": ["basic"], "meta": {"title": "Next Level", "flags": [], "tags": []}, "objects": [{"direction": 0, "group": "@Word", "coord": [-1, 0], "flags": []}, {"direction": 1, "group": "=Arrow", "coord": [0, 0], "flags": []}, {"direction": 0, "group": "@Push", "coord": [1, 0], "flags": []}, {"direction": 0, "group": "$Wall", "coord": [-4, 0], "flags": ["S:Always:You"]}]}
