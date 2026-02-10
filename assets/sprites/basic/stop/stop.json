@@ -1,0 +1,5 @@
+{
+  "sprites": {
+    "StopSym": [{ "path": "stop.png", "count": 2 }]
+  }
+}

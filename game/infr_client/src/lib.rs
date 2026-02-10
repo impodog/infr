@@ -48,6 +48,7 @@ impl Plugin for InfrClientPlugin {
         app.add_message::<LoadMap>()
             .add_message::<LevelError>()
             .add_message::<PlayerDirection>()
+            .add_message::<PlayerAction>()
             .add_message::<ActionFinished>();
         app.add_systems(Update, (convert_position,));
         app.add_systems(PreUpdate, (start_load_map, remove_past_objects));

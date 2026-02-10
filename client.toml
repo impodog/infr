@@ -2,6 +2,6 @@
 test = "assets/levels/test/test.pack.toml"
 
 [client]
-framerate = 60
+framerate = 120
 movement_velocity = 4.0
 teleport_velocity = 20.0

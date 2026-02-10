@@ -36,11 +36,15 @@ SPRITES = {
     "@Box": ("box", (0, 32)),
     "$Omega": "omega",
     "$Wall": "wall",
+    "@Wall": "wall_word",
     "ArrowRight": ("arrow", (0, 0)),
     "ArrowUp": ("arrow", (0, 32)),
     "ArrowLeft": ("arrow", (0, 64)),
     "ArrowDown": ("arrow", (0, 96)),
     "@Push": "push",
+    "@Word": "word",
+    "@Stop": "stop",
+    "@You": "you",
 }
 SCREEN_SIZE = (1920, 1080)
 EDITOR_SIZE = (1500, 1080)
@@ -206,7 +210,7 @@ def main():
     if not os.path.exists(args.file):
         data = {
             "requirements": ["basic"],
-            "meta": {"title": "INPUT_TITLE_HERE", "flags": []},
+            "meta": {"title": "INPUT_TITLE_HERE", "flags": [], "tags": []},
             "objects": [],
         }
     else:
@@ -472,7 +476,10 @@ def main():
             show_list_ui("Req", data["requirements"])
             next_ui()
             next_ui()
-            show_list_ui("Flags", data["meta"]["flags"])
+            show_list_ui("Flag", data["meta"]["flags"])
+            next_ui()
+            next_ui()
+            show_list_ui("Tag", data["meta"]["tags"])
 
         # Post-loop updates and control framerate
         pygame.display.flip()

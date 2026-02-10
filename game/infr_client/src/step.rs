@@ -10,24 +10,29 @@ use bevy_ehttp::prelude::*;
 pub struct PlayerDirection(pub transfer::Direction);
 #[derive(Message, Debug, Clone, Copy)]
 pub enum PlayerAction {
-    // TODO
+    /// Clear all movements queued
+    Clear,
 }
 
 pub(crate) fn listen_keyboard_input(
     input: Res<ButtonInput<KeyCode>>,
-    mut writer: MessageWriter<PlayerDirection>,
+    mut direction_writer: MessageWriter<PlayerDirection>,
+    mut action_writer: MessageWriter<PlayerAction>,
 ) {
     if input.any_just_pressed([KeyCode::ArrowRight, KeyCode::KeyD]) {
-        writer.write(PlayerDirection(transfer::Direction::RIGHT));
+        direction_writer.write(PlayerDirection(transfer::Direction::RIGHT));
     }
     if input.any_just_pressed([KeyCode::ArrowUp, KeyCode::KeyW]) {
-        writer.write(PlayerDirection(transfer::Direction::UP));
+        direction_writer.write(PlayerDirection(transfer::Direction::UP));
     }
     if input.any_just_pressed([KeyCode::ArrowLeft, KeyCode::KeyA]) {
-        writer.write(PlayerDirection(transfer::Direction::LEFT));
+        direction_writer.write(PlayerDirection(transfer::Direction::LEFT));
     }
     if input.any_just_pressed([KeyCode::ArrowDown, KeyCode::KeyS]) {
-        writer.write(PlayerDirection(transfer::Direction::DOWN));
+        direction_writer.write(PlayerDirection(transfer::Direction::DOWN));
+    }
+    if input.just_pressed(KeyCode::Escape) {
+        action_writer.write(PlayerAction::Clear);
     }
 }
 
@@ -38,10 +43,16 @@ pub(crate) fn listen_keyboard_input(
 pub struct PlayerInputQueue(pub VecDeque<transfer::Direction>);
 
 pub(crate) fn queue_player_input(
-    mut reader: MessageReader<PlayerDirection>,
+    mut direction_reader: MessageReader<PlayerDirection>,
+    mut action_reader: MessageReader<PlayerAction>,
     mut queue: ResMut<PlayerInputQueue>,
 ) {
-    queue.extend(reader.read().map(|message| message.0));
+    queue.extend(direction_reader.read().map(|message| message.0));
+    for action in action_reader.read() {
+        if matches!(action, PlayerAction::Clear) {
+            queue.clear();
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -54,6 +65,7 @@ pub(crate) fn read_player_input(
     q_request: Query<(), With<HttpRequest>>,
     mut request_level: ResMut<StepRequestLevel>,
     action_count: Res<ActionCount>,
+    mut q_objects: Query<&mut Transform, With<crate::Object>>,
 ) -> Result<()> {
     if current_round.actual_round != 0
         || q_request.iter().next().is_some()
@@ -65,6 +77,12 @@ pub(crate) fn read_player_input(
         return Ok(());
     };
     info!("Player input direction: {direction:?}");
+
+    // Resets object display order
+    q_objects.par_iter_mut().for_each(|mut transform| {
+        transform.translation.z = 0.0;
+    });
+
     request_level.0 += 1;
     commands
         .spawn(make_post_request(

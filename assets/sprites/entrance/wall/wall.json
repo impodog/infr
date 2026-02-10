@@ -1,5 +1,6 @@
 {
   "sprites": {
-    "Wall": [{ "path": "wall.png", "interval": 1000 }]
+    "WallIns": [{ "path": "wall.png", "interval": 1000 }],
+    "WallSym": [{ "path": "wall_word.png", "count": 2 }]
   }
 }

@@ -35,6 +35,8 @@ pub struct LevelMetadata {
     pub tinting: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub flags: Vec<String>,
 }
 
 fn default_title() -> String {

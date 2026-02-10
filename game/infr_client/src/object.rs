@@ -108,7 +108,12 @@ pub struct PositionCenter {
 }
 
 pub(crate) fn convert_position(
-    mut q_position: Query<(&mut Transform, Option<&Object>, &Position)>,
+    mut q_position: Query<(
+        &mut Transform,
+        Option<&Object>,
+        Option<&ObjectFlags>,
+        &Position,
+    )>,
     session_id: Res<crate::CurrentSession>,
     mut position_center: ResMut<PositionCenter>,
 ) {
@@ -116,8 +121,10 @@ pub(crate) fn convert_position(
     let mut min_y = f32::INFINITY;
     let mut max_x = f32::NEG_INFINITY;
     let mut max_y = f32::NEG_INFINITY;
-    for (_, object, position) in q_position.iter() {
-        if object.is_some_and(|object| object.session_id == **session_id) {
+    for (_, object, flags, position) in q_position.iter() {
+        if object.is_some_and(|object| object.session_id == **session_id)
+            && flags.is_none_or(|flags| flags.search_flags("C:OutBound").next().is_none())
+        {
             min_x = min_x.min(position.x);
             max_x = max_x.max(position.x);
             min_y = min_y.min(position.y);
@@ -131,7 +138,7 @@ pub(crate) fn convert_position(
 
     q_position
         .par_iter_mut()
-        .for_each(|(mut transform, _, position)| {
+        .for_each(|(mut transform, _, _, position)| {
             let rel_position = position.0 - center;
             transform.translation.x = rel_position.x * config::CONFIG.display.tile_size.0 as f32;
             transform.translation.y = rel_position.y * config::CONFIG.display.tile_size.1 as f32;

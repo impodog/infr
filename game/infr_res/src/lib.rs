@@ -50,7 +50,14 @@ impl Plugin for InfrResPlugin {
             )
                 .run_if(in_state(infr_client::GlobalState::Game)),
         );
-        app.add_systems(Update, info::play_morph_effect);
+        app.add_systems(
+            Update,
+            (
+                info::play_morph_effect,
+                info::accelerate_loading_when_loaded,
+            ),
+        );
         app.add_systems(OnExit(infr_client::MapState::Loading), info::show_title);
+        app.add_systems(OnEnter(infr_client::MapState::Loading), info::show_loading);
     }
 }

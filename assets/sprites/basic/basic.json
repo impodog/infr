@@ -3,6 +3,9 @@
     "arrow/arrow.json",
     "omega/omega.json",
     "empty/empty.json",
-    "push/push.json"
+    "push/push.json",
+    "word/word.json",
+    "stop/stop.json",
+    "you/you.json"
   ]
 }

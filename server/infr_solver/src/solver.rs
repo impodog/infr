@@ -3,7 +3,7 @@
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicU32, Ordering};
 
-use crate::consts;
+use crate::consts::{self, ABSTRACT_NATURE};
 
 /// The coordinates of the object in signed integer.
 /// This allows infinite sized map.
@@ -527,8 +527,13 @@ impl Map {
 
         self.solver.push();
         let object = self.objects.get(index).expect("index should be in bounds.");
-        self.solver
-            .assert(ast::Bool::new_const(object.group.clone()));
+        if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol) {
+            self.solver
+                .assert(ast::Bool::new_const(object.group.clone()));
+        } else {
+            self.solver
+                .assert(ast::Bool::new_const(ABSTRACT_NATURE.to_owned()));
+        }
     }
 
     /// For each Instance/Symbol and each relevant group given, proves and stores if it is in that group.
@@ -538,24 +543,20 @@ impl Map {
         let mut groups = Vec::<Vec<String>>::new();
         for (index, object) in self.objects.iter().enumerate() {
             let mut current_groups = BTreeSet::new();
-            if matches!(object.kind, ObjectKind::Instance | ObjectKind::Symbol) {
-                self.push_object_state(index);
-                for group in relevant_groups.iter() {
-                    println!("Prove {group} for nature {}", object.group);
-                    if self.prove_variable(group) {
-                        println!("YES");
-                        current_groups.insert(group.to_string());
-                    }
+            self.push_object_state(index);
+            for group in relevant_groups.iter() {
+                if self.prove_variable(group) {
+                    current_groups.insert(group.to_string());
                 }
-                self.revert();
-                // Special case: The object's natural group is not in the relevant groups,
-                // but we still need to add it.
-                if !relevant_groups.contains(&object.group) {
-                    current_groups.insert(object.group.clone());
-                }
-                for flag in object.search_flags("S:Always:") {
-                    current_groups.insert(flag.to_owned());
-                }
+            }
+            self.revert();
+            // Special case: The object's natural group is not in the relevant groups,
+            // but we still need to add it.
+            if !relevant_groups.contains(&object.group) {
+                current_groups.insert(object.group.clone());
+            }
+            for flag in object.search_flags("S:Always:") {
+                current_groups.insert(flag.to_owned());
             }
             groups.push(current_groups.into_iter().collect());
         }
