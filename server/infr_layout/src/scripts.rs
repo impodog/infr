@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{Arc, Mutex},
 };
@@ -22,10 +22,14 @@ type ArcMap<K, V> = Arc<Mutex<HashMap<K, V>>>;
 /// Stores the imported scripts and manages hot reloading.
 pub struct Scripts {
     scripts: HashMap<String, ScriptContent>,
+
     pub features: ArcMap<FeatureId, Feature>,
     /// Stores the map from feature name to its id.
     pub feature_names: ArcMap<String, FeatureId>,
-    pub instances: ArcMap<InstanceId, Instance>,
+
+    pub level_callbacks: ArcMap<LevelCallbackId, LevelCallback>,
+    pub level_callback_names: ArcMap<String, LevelCallbackId>,
+
     /// Scripts may apply for a step-specific table that correlates with an object.
     pub grabbed_tables: ArcMap<u32, LuaValue>,
 }
@@ -65,11 +69,11 @@ impl Scripts {
             module.set(
                 "register_feature",
                 lua.create_function(move |_, feature: Feature| -> LuaResult<FeatureId> {
-                    let id = FeatureId::new();
-                    features_names
+                    let id = *features_names
                         .lock()
                         .unwrap()
-                        .insert(feature.name.clone(), id);
+                        .entry(feature.name.clone())
+                        .or_insert_with(FeatureId::new);
 
                     log::info!("Registered feature {} with id {id:?}", feature.name);
 
@@ -80,14 +84,25 @@ impl Scripts {
         }
 
         {
-            let instances = self.instances.clone();
+            let level_callbacks = self.level_callbacks.clone();
+            let level_callback_names = self.level_callback_names.clone();
             module.set(
-                "register_instance",
-                lua.create_function(move |_, instance: Instance| -> LuaResult<InstanceId> {
-                    let id = InstanceId::new();
-                    instances.lock().unwrap().insert(id, instance);
-                    Ok(id)
-                })?,
+                "register_level_callback",
+                lua.create_function(
+                    move |_, callback: LevelCallback| -> LuaResult<LevelCallbackId> {
+                        let id = *level_callback_names
+                            .lock()
+                            .unwrap()
+                            .entry(callback.name.clone())
+                            .or_insert_with(LevelCallbackId::new);
+
+                        log::info!("Registered level callback {} with id {id:?}", callback.name);
+
+                        level_callbacks.lock().unwrap().insert(id, callback);
+
+                        Ok(id)
+                    },
+                )?,
             )?;
         }
 
@@ -154,6 +169,32 @@ impl Scripts {
                 Err(err) => {
                     log::error!("Unable to load script {:?} : {}", path.path, err);
                 }
+            }
+        }
+        Ok(())
+    }
+
+    /// Executes all level callbacks whose flag requirements meet the given ones.
+    pub fn run_level_callbacks(&self, _lua: &Lua, flags: &HashSet<String>) -> LuaResult<()> {
+        let level_callbacks = self.level_callbacks.lock().unwrap();
+        for callback in level_callbacks.values() {
+            let mut ok = true;
+            for flag in callback.flags.iter().map(String::as_str) {
+                #[allow(clippy::manual_strip)]
+                let (reverse, base) = if flag.starts_with('!') {
+                    (true, &flag[1..])
+                } else {
+                    (false, flag)
+                };
+                let search_for = format!("S:Call:{base}");
+                // If not reversed, flags must contain it; If reverse, flags must not contain it.
+                if !(reverse ^ flags.contains(&search_for)) {
+                    ok = false;
+                    break;
+                }
+            }
+            if ok {
+                callback.callback.call::<()>(())?;
             }
         }
         Ok(())
@@ -230,11 +271,14 @@ impl Feature {
     }
 }
 
-/// Defined by the script, creates an instance class with sprite info.
+/// Defined by the script, called every time a level loads.
 #[derive(Debug, Clone)]
-pub struct Instance {
-    /// The feature tied to all instances.
-    pub feature: FeatureId,
+pub struct LevelCallback {
+    pub name: String,
+    /// It requires these 'S:Call:' flags to exist(without '!' symbol) / not exist(with '!' symbol) to run.
+    pub flags: Vec<String>,
+    pub callback: LuaFunction,
 }
+
 #[derive(Debug, Id)]
-pub struct InstanceId(u32);
+pub struct LevelCallbackId(u32);

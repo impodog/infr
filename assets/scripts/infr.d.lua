@@ -85,20 +85,10 @@ infr.Signal = {}
 ---@field respond infr.Respond | nil Executed for each listened movement.
 infr.Feature = {}
 
---- Creates an instance type that are tied to a feature, and are objects that have illustrations(in the frontend).
----@class infr.Instance
----@field feature integer The feature that this instance is tied to.
-infr.Instance = {}
-
 --- Registers a feature, returning its id.
 ---@param feature infr.Feature
 ---@return integer feature_id The assigned id of the feature.
 function infr.register_feature(feature) end
-
---- Registers an instance, returning its id. Instances are tied to only one feature.
----@param instance infr.Instance
----@return integer instance_id The assigned id of the instance.
-function infr.register_instance(instance) end
 
 --- Applies for a table local to the current player input sequence and unique to each object.
 --- This can be useful for tracking custom information.

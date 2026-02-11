@@ -210,7 +210,12 @@ def main():
     if not os.path.exists(args.file):
         data = {
             "requirements": ["basic"],
-            "meta": {"title": "INPUT_TITLE_HERE", "flags": [], "tags": []},
+            "meta": {
+                "title": "INPUT_TITLE_HERE",
+                "flags": [],
+                "tags": [],
+                "axioms": [],
+            },
             "objects": [],
         }
     else:
@@ -480,6 +485,9 @@ def main():
             next_ui()
             next_ui()
             show_list_ui("Tag", data["meta"]["tags"])
+            next_ui()
+            next_ui()
+            show_list_ui("Axiom", data["meta"]["axioms"])
 
         # Post-loop updates and control framerate
         pygame.display.flip()

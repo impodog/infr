@@ -236,12 +236,35 @@ async fn load_session(
         }
     }
 
+    // Run level callbacks.
+    {
+        let scripts = state.scripts.read().unwrap();
+        scripts
+            .run_level_callbacks(&state.0.lua, &meta.flags)
+            .map_err(|err| {
+                log::error!("Failed to run level callback: {err}");
+                transfer::ServerError::ServerSide(err.to_string())
+            })?;
+    }
+
     log::info!("Session {session_id}: scripts required loaded successfully");
 
     let mut layout = Layout::new();
     for object in objects.into_iter() {
         layout.map.push(Object::try_from(object)?);
     }
+
+    // Add axioms that the level requires.
+    let mut axioms = BTreeSet::new();
+    for axiom_group in meta.axioms.iter() {
+        if let Some(axiom_group) = infr_solver::axioms::AXIOM_GROUPS.get(axiom_group.as_str()) {
+            axioms.extend(axiom_group.iter().copied());
+        } else {
+            log::warn!("Unknown axiom group: {axiom_group}");
+        }
+    }
+    log::info!("Axioms to add: {axioms:?}");
+    infr_solver::axioms::add_axioms(&mut layout.map, axioms);
 
     let session = Session {
         meta,

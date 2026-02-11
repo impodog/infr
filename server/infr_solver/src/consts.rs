@@ -12,6 +12,9 @@ pub const OPERATOR_DOUBLE_ARROW: &str = "DoubleArrow";
 /// Name of Structure and Operator objects, used for adding their group.
 pub const ABSTRACT_NATURE: &str = "Word";
 
+// Some common groups for asserting axioms.
+pub const WORD_PUSH: &str = "Push";
+
 /// The prefix for tracking map-specific rule inconsistency.
 pub const RULE_PREFIX: &str = "Rule";
 /// The prefix for tracking axiom inconsistency with rules.

@@ -22,7 +22,7 @@ pub(crate) fn load_room(
         writer.write(room.into());
         let prev_coord = user
             .rooms
-            .get(room)
+            .get(&user.current_room.0)
             .map(|data| data.coord)
             .unwrap_or_default();
         let new_coord = prev_coord + direction.delta();

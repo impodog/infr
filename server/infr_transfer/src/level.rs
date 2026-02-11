@@ -1,5 +1,7 @@
 //! Defines types for parsing level config.
 
+use std::collections::HashSet;
+
 use crate::*;
 
 /// Used only in `Level` for constructing a object, opposed to retrieving it.
@@ -36,7 +38,9 @@ pub struct LevelMetadata {
     #[serde(default)]
     pub tags: Vec<String>,
     #[serde(default)]
-    pub flags: Vec<String>,
+    pub flags: HashSet<String>,
+    #[serde(default)]
+    pub axioms: Vec<String>,
 }
 
 fn default_title() -> String {

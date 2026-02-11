@@ -130,7 +130,6 @@ impl crate::Map {
             };
             let index = indices[vector_index].1;
             let object = map.objects.get(index).unwrap();
-            println!("Requested: {} given: {}", id, object.id());
             result.push(crate::Object {
                 id: object.id(),
                 coord: object.coord.into(),

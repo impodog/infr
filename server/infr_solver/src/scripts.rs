@@ -32,7 +32,7 @@ impl FromLua for Direction {
                 }
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Direction".to_owned(),
                 message: Some("Invalid direction value".to_string()),
             }),
@@ -57,7 +57,7 @@ impl FromLua for Coord {
                 Ok(Self { x, y })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Coord".to_owned(),
                 message: Some("Invalid coord value".to_string()),
             }),
@@ -94,7 +94,7 @@ impl FromLua for ObjectKind {
                 }
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "ObjectKind".to_owned(),
                 message: Some("Invalid object kind value".to_string()),
             }),
@@ -143,7 +143,7 @@ impl FromLua for ObjectDesc {
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "ObjectDesc".to_owned(),
                 message: Some("Invalid object description value".to_string()),
             }),
@@ -164,5 +164,96 @@ impl Map {
             group: group.clone(),
             flags: object.flags().clone(),
         })
+    }
+}
+
+impl IntoLua for &SignedText {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let table = lua.create_table()?;
+        match &self.0 {
+            Text::IsGroup(group) => {
+                table.set("kind", "IsGroup")?;
+                table.set("group", group.clone())?;
+            }
+        }
+        table.set("neg", self.1)?;
+        Ok(LuaValue::Table(table))
+    }
+}
+impl FromLua for SignedText {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match &value {
+            LuaValue::String(group) => {
+                let group = group.to_string_lossy();
+                if let Some(group) = group.strip_prefix('!') {
+                    Ok(Self(Text::IsGroup(group.to_owned()), true))
+                } else {
+                    Ok(Self(Text::IsGroup(group), false))
+                }
+            }
+            LuaValue::Table(table) => {
+                let kind = table.get::<String>("kind")?;
+                let text = match kind.as_str() {
+                    "IsGroup" => {
+                        let group = table.get::<String>("group")?;
+                        Text::IsGroup(group)
+                    }
+                    _ => {
+                        return Err(LuaError::FromLuaConversionError {
+                            from: value.type_name(),
+                            to: "SignedText".to_owned(),
+                            message: Some(format!("Unexpected text kind: {kind}")),
+                        });
+                    }
+                };
+                let neg = table.get::<bool>("neg").unwrap_or_default();
+                Ok(Self(text, neg))
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: value.type_name(),
+                to: "SignedText".to_owned(),
+                message: Some("Invalid signed text value".to_string()),
+            }),
+        }
+    }
+}
+
+impl IntoLua for &Rule {
+    fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
+        let table = lua.create_table()?;
+        let premise = lua.create_table()?;
+        for (index, premise_text) in self.premise.iter().enumerate() {
+            premise.set(index + 1, premise_text)?;
+        }
+        table.set("premise", premise)?;
+        let conclusion = lua.create_table()?;
+        for (index, conclusion_text) in self.conclusion.iter().enumerate() {
+            conclusion.set(index + 1, conclusion_text)?;
+        }
+        table.set("conclusion", conclusion)?;
+        table.set("double_arrow", self.double_arrow)?;
+        Ok(LuaValue::Table(table))
+    }
+}
+impl FromLua for Rule {
+    fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
+        match value {
+            LuaValue::Table(table) => {
+                let premise = table.get::<Vec<SignedText>>("premise")?;
+                let conclusion = table.get::<Vec<SignedText>>("conclusion")?;
+                let double_arrow = table.get::<bool>("double_arrow")?;
+                Ok(Self {
+                    premise,
+                    conclusion,
+                    double_arrow,
+                    range: Default::default(),
+                })
+            }
+            _ => Err(LuaError::FromLuaConversionError {
+                from: value.type_name(),
+                to: "Rule".to_owned(),
+                message: Some("Invalid rule value".to_string()),
+            }),
+        }
     }
 }

@@ -2,6 +2,8 @@
 
 use mlua::prelude::*;
 
+// --- Layout/Movement types
+
 impl IntoLua for crate::Manner {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
         let table = lua.create_table()?;
@@ -68,7 +70,7 @@ impl FromLua for crate::Manner {
                 }
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Manner".to_owned(),
                 message: Some("Invalid value type for Manner".to_owned()),
             }),
@@ -108,13 +110,15 @@ impl FromLua for crate::Movement {
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Movement".to_owned(),
                 message: Some("Invalid value type for Movement".to_owned()),
             }),
         }
     }
 }
+
+// --- Types for transferring data to/from lua.
 
 impl IntoLua for crate::Signal {
     fn into_lua(self, lua: &Lua) -> LuaResult<LuaValue> {
@@ -133,7 +137,7 @@ impl FromLua for crate::Signal {
                 Ok(Self { direction, round })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Signal".to_owned(),
                 message: Some("Invalid value type for Signal".to_owned()),
             }),
@@ -151,7 +155,7 @@ impl FromLua for crate::scripts::ListenKind {
                 Ok(Self::Coord(coord))
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "ListenKind".to_owned(),
                 message: Some("Invalid value type for ListenKind".to_owned()),
             }),
@@ -175,7 +179,7 @@ impl FromLua for crate::scripts::Feature {
                 })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
+                from: value.type_name(),
                 to: "Feature".to_owned(),
                 message: Some("Invalid value type for Feature".to_owned()),
             }),
@@ -183,17 +187,23 @@ impl FromLua for crate::scripts::Feature {
     }
 }
 
-impl FromLua for crate::scripts::Instance {
+impl FromLua for crate::scripts::LevelCallback {
     fn from_lua(value: LuaValue, _lua: &Lua) -> LuaResult<Self> {
         match value {
             LuaValue::Table(table) => {
-                let feature = table.get("feature")?;
-                Ok(Self { feature })
+                let name = table.get("name")?;
+                let flags = table.get("flags")?;
+                let callback = table.get("callback")?;
+                Ok(Self {
+                    name,
+                    flags,
+                    callback,
+                })
             }
             _ => Err(LuaError::FromLuaConversionError {
-                from: "value",
-                to: "Instance".to_owned(),
-                message: Some("Invalid value type for Instance".to_owned()),
+                from: value.type_name(),
+                to: "LevelCallback".to_owned(),
+                message: Some("Invalid value type for LevelCallback".to_owned()),
             }),
         }
     }
