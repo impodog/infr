@@ -1,1 +1,1 @@
-{"requirements": ["basic"], "meta": {"title": "INPUT_TITLE_HERE", "flags": [], "tags": [], "axioms": ["All"]}, "objects": [{"direction": 0, "group": "$Wall", "coord": [-1, 0], "flags": ["S:Always:You"]}, {"direction": 0, "group": "@Wall", "coord": [2, 0], "flags": []}]}
+{"requirements": ["basic"], "meta": {"title": "INPUT_TITLE_HERE", "flags": [], "tags": [], "axioms": ["All"], "background": "EntranceBackground"}, "objects": [{"direction": 0, "group": "$Wall", "coord": [-1, 0], "flags": ["S:Always:You"]}, {"direction": 0, "group": "@Wall", "coord": [2, 0], "flags": []}]}

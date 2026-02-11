@@ -1,5 +1,6 @@
 [levels]
 test = "assets/levels/test/test.pack.toml"
+entrance = "assets/levels/entrance/entrance.toml"
 
 [client]
 framerate = 120

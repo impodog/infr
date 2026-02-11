@@ -263,7 +263,6 @@ async fn load_session(
             log::warn!("Unknown axiom group: {axiom_group}");
         }
     }
-    log::info!("Axioms to add: {axioms:?}");
     infr_solver::axioms::add_axioms(&mut layout.map, axioms);
 
     let session = Session {

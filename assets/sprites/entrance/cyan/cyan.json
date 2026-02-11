@@ -1,0 +1,9 @@
+{
+  "sprites": {
+    "CyanIns": [
+      { "path": "cyan.png", "count": 2, "interval": 500, "offset": [0, 0] },
+      { "path": "cyan.png", "count": 2, "interval": 500, "offset": [0, 32] }
+    ],
+    "CyanSym": [{ "path": "cyan_word.png", "count": 2 }]
+  }
+}

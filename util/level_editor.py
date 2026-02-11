@@ -45,6 +45,8 @@ SPRITES = {
     "@Word": "word",
     "@Stop": "stop",
     "@You": "you",
+    "$Cyan": "cyan",
+    "@Cyan": "cyan_word",
 }
 SCREEN_SIZE = (1920, 1080)
 EDITOR_SIZE = (1500, 1080)
@@ -72,7 +74,7 @@ for dir, _, files in os.walk("assets/sprites"):
         if os.path.isfile(path) and path.endswith(".png"):
             name = os.path.basename(path)[:-4]
             ALL_SPRITE_PATHS[name] = path
-            print(f"Insert {name} = {path}")
+            # print(f"Insert {name} = {path}")
 
 new_sprites = dict()
 for key, value in SPRITES.items():
@@ -195,6 +197,10 @@ def main():
                     if len(flags[index]) == 0:
                         del flags[index]
 
+        if background := data["meta"].get("background"):
+            if len(background) == 0:
+                del data["meta"]["background"]
+
         with open(args.file, "w") as file:
             json.dump(data, file)
 
@@ -211,10 +217,11 @@ def main():
         data = {
             "requirements": ["basic"],
             "meta": {
-                "title": "INPUT_TITLE_HERE",
+                "title": "",
                 "flags": [],
                 "tags": [],
                 "axioms": [],
+                "background": "",
             },
             "objects": [],
         }
@@ -476,6 +483,18 @@ def main():
             show_selectable_ui(f"Title = {data['meta']['title']}")
             if ui_selected == current_ui:
                 data["meta"]["title"] = input_on(data["meta"]["title"])
+            next_ui()
+            next_ui()
+            if (background := data["meta"].get("background")) is not None:
+                show_selectable_ui(f"Background = {background}")
+                if ui_selected == current_ui:
+                    data["meta"]["background"] = input_on(data["meta"]["background"])
+                elif len(background) == 0:
+                    del data["meta"]["background"]
+            else:
+                show_selectable_ui("Background = None")
+                if ui_selected == current_ui:
+                    data["meta"]["background"] = ""
             next_ui()
             next_ui()
             show_list_ui("Req", data["requirements"])

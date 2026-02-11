@@ -21,6 +21,7 @@ fn main() {
             commands.insert_resource(Time::<Fixed>::from_duration(
                 infr_client::config::CONFIG.client.frame_duration,
             ));
+            commands.insert_resource(ClearColor(Color::BLACK));
         })
         .run();
 }

@@ -91,7 +91,12 @@ pub struct BackgroundPicture;
 
 /// This is called only once at startup, to reuse the background picture.
 pub(crate) fn setup_background(mut commands: Commands) {
-    commands.spawn((BackgroundPicture, crate::camera::DISPLAY_RENDER_LAYER));
+    commands.spawn((
+        BackgroundPicture,
+        Transform::from_translation(Vec3::new(0.0, 0.0, -15.37)),
+        infr_client::Position(Vec2::new(0.0, 0.0)),
+        crate::camera::PIXEL_RENDER_LAYER,
+    ));
 }
 
 pub(crate) fn modify_background(
