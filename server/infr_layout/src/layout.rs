@@ -351,10 +351,9 @@ impl Layout {
         let mut new_move_queue = Vec::<Movement>::new();
         if !self.move_queue.is_empty() {
             for current in self.move_queue.drain(..) {
-                if let Some(previous) = new_move_queue.first_mut()
+                if let Some(previous) = new_move_queue.last_mut()
                     && current.object == previous.object
                 {
-                    // Two forbid movements are excluded, since it doesn't matter if the object NOT move two different ways
                     if current.conflicts(previous) {
                         return Err(InfrError::DifferentMovements(Box::new((
                             current.clone(),

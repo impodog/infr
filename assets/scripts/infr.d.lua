@@ -52,6 +52,7 @@ infr.ObjectDesc = {}
 ---@field prereqs integer[] | nil Ids of objects whose movement must be performed before this movement can be performed.
 ---@field postreqs integer[] | nil Ids of objects whose movement must be performed after this movement.
 ---@field disables integer[] If this movement is performed, all the specified movements will not be performed.
+--- If you want the movement to be always disabled, set object to `infr.UNUSED_ID`.
 infr.Movement = {}
 
 --- The signal sent by stepping the layout. Each signal corresponds to a "round", where one or many "round"s happen after one player input.

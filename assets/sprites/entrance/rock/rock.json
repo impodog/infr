@@ -1,0 +1,6 @@
+{
+  "sprites": {
+    "RockIns": [{ "path": "rock.png", "count": 1 }],
+    "RockSym": [{ "path": "rock_word.png", "count": 2 }]
+  }
+}

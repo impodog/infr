@@ -22,7 +22,7 @@ infr.register_feature({
     respond = function(layout, movement, object, coord)
         return { {
             manner = "Placeholder", -- Manner doesn't matter since this object is not moving anyways
-            object = object,
+            object = infr.UNUSED_ID,
             dest = coord,
             disables = { movement.object }
         } }

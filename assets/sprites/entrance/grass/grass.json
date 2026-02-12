@@ -1,0 +1,6 @@
+{
+  "sprites": {
+    "GrassIns": [{ "path": "grass.png", "count": 2, "interval": 500 }],
+    "GrassSym": [{ "path": "grass_word.png", "count": 2 }]
+  }
+}

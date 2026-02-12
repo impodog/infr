@@ -3,7 +3,9 @@
     "box/box.json",
     "back/back.json",
     "wall/wall.json",
-    "cyan/cyan.json"
+    "cyan/cyan.json",
+    "rock/rock.json",
+    "grass/grass.json"
   ],
   "tinting": {
     "Red": {

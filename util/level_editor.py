@@ -47,6 +47,10 @@ SPRITES = {
     "@You": "you",
     "$Cyan": "cyan",
     "@Cyan": "cyan_word",
+    "$Rock": "rock",
+    "@Rock": "rock_word",
+    "$Grass": "grass",
+    "@Grass": "grass_word",
 }
 SCREEN_SIZE = (1920, 1080)
 EDITOR_SIZE = (1500, 1080)
@@ -455,7 +459,7 @@ def main():
             if 1 <= selected["dir"] <= 4:
                 screen.blit(
                     font.render(
-                        f"Direction = {DIRECTION_NAMES[selected['direction']]}",
+                        f"Direction = {DIRECTION_NAMES[selected['dir']]}",
                         True,
                         UI_INFO_COLOR,
                     ),
