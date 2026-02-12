@@ -82,6 +82,9 @@ fn observe_load_map(
     commands
         .spawn(make_get_request("session/map", &session_id)?)
         .observe(observe_level_map);
+    commands
+        .spawn(make_get_request("session/rules", &session_id)?)
+        .observe(crate::step::observe_get_rules);
 
     commands.entity(event.entity).despawn();
 
@@ -159,3 +162,80 @@ pub(crate) fn refresh_session(mut commands: Commands, session: Res<CurrentSessio
 /// Message to completely reload all objects of the map.
 #[derive(Message, Default)]
 pub struct ReloadMap;
+
+pub(crate) fn handle_reload_map(
+    mut reader: MessageReader<ReloadMap>,
+    mut commands: Commands,
+    q_request: Query<Entity, With<RequestMarker>>,
+    mut state: ResMut<NextState<crate::MapState>>,
+    session: Res<CurrentSession>,
+) -> Result<()> {
+    // Filters multiple requests.
+    if reader.read().next().is_none() {
+        return Ok(());
+    }
+    state.set(crate::MapState::Reloading);
+    q_request.iter().for_each(|entity| {
+        commands.entity(entity).despawn();
+    });
+    commands
+        .spawn(make_post_request("session/map", &session.0)?)
+        .observe(observe_reload_map);
+    Ok(())
+}
+
+fn observe_reload_map(
+    event: On<ResponseString>,
+    mut commands: Commands,
+    mut state: ResMut<NextState<crate::MapState>>,
+    mut writer: MessageWriter<LevelError>,
+    mut map: ResMut<Map>,
+    mut q_object: Query<(&mut crate::ObjectState, &mut crate::ObjectGroups)>,
+    session: Res<CurrentSession>,
+) -> Result<()> {
+    let objects = parse_response_and_report!(transfer::Map, writer, event)
+        .0
+        .into_iter()
+        .map(|object| (object.id, object))
+        .collect::<HashMap<_, _>>();
+    for (id, object) in objects.into_iter() {
+        if let Some(entity) = map.objects.get(&id)
+            && let Ok((mut object_state, mut object_groups)) = q_object.get_mut(*entity)
+        {
+            object_state.direction = object.direction;
+            object_state.nature = object.nature.clone();
+            object_groups.0 = object.groups.clone();
+        } else {
+            let entity = commands
+                .spawn((
+                    crate::Object {
+                        id: object.id,
+                        session_id: session.0,
+                    },
+                    crate::ObjectState {
+                        direction: object.direction,
+                        nature: object.nature,
+                    },
+                    crate::Position(Vec2::new(object.coord.0 as f32, object.coord.1 as f32)),
+                    crate::ObjectGroups(object.groups),
+                    crate::ObjectFlags(object.flags),
+                ))
+                .id();
+            map.objects.insert(object.id, entity);
+        }
+    }
+
+    state.set(crate::MapState::Free);
+    commands.entity(event.entity).despawn();
+
+    Ok(())
+}
+
+pub(crate) fn reload_on_error(
+    mut reader: MessageReader<LevelError>,
+    mut writer: MessageWriter<ReloadMap>,
+) {
+    if reader.read().next().is_some() {
+        writer.write(ReloadMap);
+    }
+}

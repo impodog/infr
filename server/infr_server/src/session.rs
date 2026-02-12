@@ -143,6 +143,7 @@ pub(crate) fn route_session(state: AppState) -> Router<AppState> {
         .route("/remove", post(remove_snapshot))
         .route("/revert", post(revert_snapshot))
         .route("/refresh", post(refresh_session))
+        .route("/rules", get(get_rules))
 }
 
 async fn remove_expired_sessions(state: AppState) {
@@ -535,4 +536,27 @@ async fn refresh_session(
     let session = state.get_session(session_id)?;
     session.lock().unwrap().last_refresh = current_time();
     Ok("Session refreshed")
+}
+
+async fn get_rules(
+    state: State<AppState>,
+    req: Json<transfer::GetRulesRequest>,
+) -> Response<Json<transfer::GetRulesResponse>> {
+    let session_id = req.0;
+    let session_ref = state.get_session(session_id)?;
+    let mut session = session_ref.lock().unwrap();
+
+    session.initialize()?;
+
+    let rules = session
+        .layout
+        .map
+        .rules
+        .iter()
+        .map(|rule| {
+            let (start, end) = rule.range();
+            (start.into(), end.into())
+        })
+        .collect::<Vec<_>>();
+    Ok(Json(transfer::GetRulesResponse { rules }))
 }

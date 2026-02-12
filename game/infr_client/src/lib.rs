@@ -27,12 +27,15 @@ pub enum MapState {
     Stepping,
     /// Player can only input in this state.
     Free,
+    /// The map has faced an error / player requested revert to snapshot, and requires reload.
+    Reloading,
 }
 
 pub struct InfrClientPlugin;
 
 impl Plugin for InfrClientPlugin {
     fn build(&self, app: &mut App) {
+        app.register_required_components::<bevy_ehttp::HttpRequest, prelude::RequestMarker>();
         app.init_resource::<PositionCenter>()
             .init_resource::<CurrentSession>()
             .init_resource::<LevelMetadata>()
@@ -42,16 +45,17 @@ impl Plugin for InfrClientPlugin {
             .init_resource::<CurrentObjects>()
             .init_resource::<CurrentRound>()
             .init_resource::<PlayerInputQueue>()
-            .init_resource::<StepRequestLevel>()
             .init_resource::<ActionCount>()
-            .init_resource::<PreInputSnapshot>();
+            .init_resource::<PreInputSnapshot>()
+            .init_resource::<RuleRanges>();
         app.init_state::<GlobalState>().init_state::<MapState>();
         app.add_message::<LoadMap>()
+            .add_message::<ReloadMap>()
             .add_message::<LevelError>()
             .add_message::<PlayerDirection>()
             .add_message::<PlayerAction>()
             .add_message::<ActionFinished>();
-        app.add_systems(Update, (convert_position,));
+        app.add_systems(FixedUpdate, (convert_position,));
         app.add_systems(PreUpdate, (start_load_map, remove_past_objects));
         app.add_systems(
             FixedUpdate,
@@ -85,5 +89,6 @@ impl Plugin for InfrClientPlugin {
                 .run_if(in_state(MapState::Stepping)),
         );
         app.add_observer(observe_movement_event);
+        app.add_systems(Update, (reload_on_error, handle_reload_map).chain());
     }
 }

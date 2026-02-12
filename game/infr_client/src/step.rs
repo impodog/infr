@@ -1,6 +1,6 @@
 //! This file handles player input and send requests to step the game.
 
-use std::collections::{HashMap, VecDeque};
+use std::collections::{BTreeSet, HashMap, VecDeque};
 
 use crate::{parse_response_and_report, prelude::*};
 use bevy::prelude::*;
@@ -63,7 +63,6 @@ pub(crate) fn read_player_input(
     session: Res<crate::CurrentSession>,
     mut queue: ResMut<PlayerInputQueue>,
     q_request: Query<(), With<HttpRequest>>,
-    mut request_level: ResMut<StepRequestLevel>,
     action_count: Res<ActionCount>,
     mut q_objects: Query<&mut Transform, With<crate::Object>>,
 ) -> Result<()> {
@@ -83,7 +82,6 @@ pub(crate) fn read_player_input(
         transform.translation.z = -0.1;
     });
 
-    request_level.0 += 1;
     commands
         .spawn(make_post_request(
             "session/step",
@@ -126,7 +124,6 @@ fn observe_step(
     mut current_movements: ResMut<CurrentMovements>,
     mut current_round: ResMut<CurrentRound>,
     session: Res<crate::CurrentSession>,
-    mut request_level: ResMut<StepRequestLevel>,
     mut pre_input_snapshot: ResMut<PreInputSnapshot>,
 ) -> Result<()> {
     let transfer::SendStepResponse {
@@ -139,8 +136,6 @@ fn observe_step(
     }
 
     info!("Received movements: {movements:?}");
-
-    request_level.0 -= 1;
 
     // Return to free if no more movements.
     if movements.is_empty() {
@@ -171,6 +166,9 @@ fn observe_step(
             },
         )?)
         .observe(observe_load_map_when_moving);
+    commands
+        .spawn(make_get_request("session/rules", &session.0)?)
+        .observe(observe_get_rules);
     commands.entity(event.entity).despawn();
 
     Ok(())
@@ -193,6 +191,22 @@ fn observe_load_map_when_moving(
     // Set flag for pending animations.
     current_round.actual_round += 1;
 
+    commands.entity(event.entity).despawn();
+    Ok(())
+}
+
+/// Stores all rules provided by the server.
+#[derive(Resource, Default, Debug, Clone)]
+pub struct RuleRanges(pub BTreeSet<(Coord, Coord)>);
+
+pub(crate) fn observe_get_rules(
+    event: On<ResponseString>,
+    mut commands: Commands,
+    mut writer: MessageWriter<LevelError>,
+    mut ranges: ResMut<RuleRanges>,
+) -> Result<()> {
+    let response = parse_response_and_report!(transfer::GetRulesResponse, writer, event);
+    ranges.0 = response.rules.into_iter().collect();
     commands.entity(event.entity).despawn();
     Ok(())
 }
@@ -293,23 +307,17 @@ pub(crate) fn send_animations(
     Ok(())
 }
 
-/// This is a fix to a unknown bug(probably ehttp) where HttpRequest cannot be counted.
-#[derive(Resource, Debug, Clone, Copy, Default)]
-pub(crate) struct StepRequestLevel(usize);
-
 pub(crate) fn finish_animations(
     mut commands: Commands,
     session: Res<crate::CurrentSession>,
     any_moving: Res<crate::AnyObjectMoving>,
-    q_request: Query<(), With<HttpRequest>>,
+    q_request: Query<(), With<RequestMarker>>,
     current_round: ResMut<CurrentRound>,
-    mut request_level: ResMut<StepRequestLevel>,
 ) -> Result<()> {
-    if !any_moving.0 && q_request.iter().next().is_none() && current_round.actual_round == current_round.animation_round && request_level.0 == 0
+    if !any_moving.0 && q_request.iter().next().is_none() && current_round.actual_round == current_round.animation_round
         // Skip the first round --- provides input to the user in another function.
         && current_round.actual_round != 0
     {
-        request_level.0 += 1;
         commands
             .spawn(make_post_request(
                 "session/step",

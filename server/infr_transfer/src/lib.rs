@@ -210,3 +210,13 @@ pub struct RevertSnapshotRequest {
 }
 
 pub type RefreshSessionRequest = SessionId;
+
+pub type RuleId = u32;
+
+pub type GetRulesRequest = SessionId;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct GetRulesResponse {
+    /// All rules' ranges.
+    pub rules: Vec<(Coord, Coord)>,
+}

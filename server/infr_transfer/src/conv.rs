@@ -204,7 +204,7 @@ impl TryFrom<crate::LevelObject> for Object {
                 )));
             }
         };
-        object.direction = value.direction.into();
+        object.direction = value.dir.into();
         object.set_flags(value.flags);
         Ok(object)
     }

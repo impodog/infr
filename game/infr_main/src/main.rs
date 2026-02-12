@@ -16,6 +16,7 @@ fn main() {
             infr_client::InfrClientPlugin,
             infr_res::InfrResPlugin,
             infr_level::InfrLevelPlugin,
+            infr_report::InfrReportPlugin,
         ))
         .add_systems(Startup, |mut commands: Commands| {
             commands.insert_resource(Time::<Fixed>::from_duration(

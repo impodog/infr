@@ -26,7 +26,7 @@ def mul_vec(v, k):
 
 
 def new_object(coord) -> dict:
-    return {"direction": 0, "group": "", "coord": coord, "flags": []}
+    return {"dir": 0, "group": "", "coord": coord, "flags": []}
 
 
 FRAMERATE = 60.0
@@ -354,18 +354,18 @@ def main():
             selected_pos = coord_to_rect(selected["coord"])
             diff = sub_vec(mouse_pos, selected_pos)
             if diff[0] ** 2 + diff[1] ** 2 <= object_size**2:
-                selected["direction"] = 0
+                selected["dir"] = 0
             else:
                 angle = math.atan2(diff[1], diff[0])
 
                 if -QUART_PI < angle < QUART_PI:
-                    selected["direction"] = 1
+                    selected["dir"] = 1
                 elif -3 * QUART_PI < angle < -QUART_PI:
-                    selected["direction"] = 2
+                    selected["dir"] = 2
                 elif QUART_PI < angle < 3 * QUART_PI:
-                    selected["direction"] = 4
+                    selected["dir"] = 4
                 else:
-                    selected["direction"] = 3
+                    selected["dir"] = 3
 
         # Draw alignment lines
         x_base = displacement[0] + object_size / 2
@@ -391,11 +391,11 @@ def main():
         arrows = list()
         for object in data["objects"]:
             rect = coord_to_rect(object["coord"])
-            sprite = decide_sprite(object["group"], object["direction"])
+            sprite = decide_sprite(object["group"], object["dir"])
             scaled = pygame.transform.scale(sprite, (object_size, object_size))
             screen.blit(scaled, rect)
-            if 1 <= object["direction"] <= 4:
-                arrows.append((object["direction"], rect))
+            if 1 <= object["dir"] <= 4:
+                arrows.append((object["dir"], rect))
         for direction, rect in arrows:
             surface = pygame.Surface((object_size, object_size), pygame.SRCALPHA)
             midpoint = (object_size // 2, object_size // 2)
@@ -452,7 +452,7 @@ def main():
             )
             next_ui()
             next_ui()
-            if 1 <= selected["direction"] <= 4:
+            if 1 <= selected["dir"] <= 4:
                 screen.blit(
                     font.render(
                         f"Direction = {DIRECTION_NAMES[selected['direction']]}",

@@ -13,4 +13,5 @@ bevy = { version = "0.18.0", default-features = false, features = [
 bevy_ehttp = "0.7.0"
 infr_client = { path = "../infr_client" }
 infr_level = { path = "../infr_level" }
+infr_report = { path = "../infr_report" }
 infr_res = { path = "../infr_res" }
