@@ -231,7 +231,7 @@ pub(crate) fn remove_past_objects(
     mut commands: Commands,
 ) {
     for (entity, object) in q_object.iter() {
-        if object.session_id != session.0 {
+        if object.session_id != session.id {
             commands.entity(entity).despawn();
         }
     }

@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 log = "0.4.29"
 mlua = {version = "0.11.6", optional = true, features=["mlua_derive"]}
-z3 = { version = "0.19.7", default-features = false, features = ["z3_4_8_15"] }
+z3 = { version = "0.19.14", default-features = false, features = ["z3_4_8_15"] }

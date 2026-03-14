@@ -12,6 +12,8 @@ pub struct PlayerDirection(pub transfer::Direction);
 pub enum PlayerAction {
     /// Clear all movements queued
     Clear,
+    /// Restart the whole level
+    Restart,
 }
 
 pub(crate) fn listen_keyboard_input(
@@ -33,6 +35,9 @@ pub(crate) fn listen_keyboard_input(
     }
     if input.just_pressed(KeyCode::Escape) {
         action_writer.write(PlayerAction::Clear);
+    }
+    if input.just_pressed(KeyCode::KeyR) {
+        action_writer.write(PlayerAction::Restart);
     }
 }
 
@@ -86,7 +91,7 @@ pub(crate) fn read_player_input(
         .spawn(make_post_request(
             "session/step",
             &transfer::SendStepRequest {
-                session_id: session.0,
+                session_id: session.id,
                 direction,
             },
         )?)
@@ -160,14 +165,14 @@ fn observe_step(
         .spawn(make_get_request(
             "session/objects",
             &transfer::GetObjectsRequest {
-                session_id: session.0,
+                session_id: session.id,
                 objects: requested_objects,
                 add_changed: true,
             },
         )?)
         .observe(observe_load_map_when_moving);
     commands
-        .spawn(make_get_request("session/rules", &session.0)?)
+        .spawn(make_get_request("session/rules", &session.id)?)
         .observe(observe_get_rules);
     commands.entity(event.entity).despawn();
 
@@ -249,7 +254,7 @@ pub(crate) fn send_animations(
                     .spawn((
                         crate::Object {
                             id: *id,
-                            session_id: session.0,
+                            session_id: session.id,
                         },
                         crate::ObjectState {
                             direction: object.direction,
@@ -322,7 +327,7 @@ pub(crate) fn finish_animations(
             .spawn(make_post_request(
                 "session/step",
                 &transfer::SendStepRequest {
-                    session_id: session.0,
+                    session_id: session.id,
                     direction: Default::default(),
                 },
             )?)

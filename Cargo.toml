@@ -5,6 +5,9 @@ edition = "2024"
 
 [workspace]
 resolver = "3"
-members = ["server/*", "game/*"]
+members = ["game/*", "server/*"]
 
 [dependencies]
+
+[profile.dev]
+opt-level = 2

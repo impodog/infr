@@ -90,5 +90,6 @@ impl Plugin for InfrClientPlugin {
         );
         app.add_observer(observe_movement_event);
         app.add_systems(Update, (reload_on_error, handle_reload_map).chain());
+        app.add_systems(Last, restart_on_input);
     }
 }

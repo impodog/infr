@@ -16,11 +16,19 @@ impl Map {
     }
 }
 
-#[derive(Resource, Debug, Clone, Copy, Deref, DerefMut)]
-pub struct CurrentSession(pub SessionId);
+#[derive(Resource, Debug, Clone, Deref, DerefMut)]
+pub struct CurrentSession {
+    #[deref]
+    pub id: SessionId,
+    /// Saves the exact message used to load this map.
+    pub name: LoadMap,
+}
 impl Default for CurrentSession {
     fn default() -> Self {
-        Self(SessionId::MAX)
+        Self {
+            id: SessionId::MAX,
+            name: Default::default(),
+        }
     }
 }
 
@@ -29,7 +37,7 @@ impl Default for CurrentSession {
 pub struct LevelError(pub transfer::ServerError);
 
 /// Loads a new map into the Map resource. This may take several frames.
-#[derive(Message, Debug)]
+#[derive(Message, Component, Debug, Clone, Default)]
 pub struct LoadMap {
     pub pack: String,
     pub name: String,
@@ -54,7 +62,9 @@ pub(crate) fn start_load_map(
             continue;
         };
         let request = make_post_request("session/load", &transfer::LoadSessionRequest { path })?;
-        commands.spawn(request).observe(observe_load_map);
+        commands
+            .spawn((request, message.clone()))
+            .observe(observe_load_map);
         map_state.set(crate::MapState::Loading);
         for entity in q_session_only.iter() {
             commands.entity(entity).despawn();
@@ -69,10 +79,14 @@ fn observe_load_map(
     mut current_session: ResMut<CurrentSession>,
     mut writer: MessageWriter<LevelError>,
     mut map: ResMut<Map>,
+    q_message: Query<&LoadMap>,
 ) -> Result<()> {
     let session_id = parse_response_and_report!(SessionId, writer, event);
     info!("Loaded session id: {session_id}");
-    **current_session = session_id;
+    current_session.id = session_id;
+    if let Ok(message) = q_message.get(event.entity) {
+        current_session.name = message.clone();
+    }
     map.objects.clear();
 
     // Read level data.
@@ -124,7 +138,7 @@ fn observe_level_map(
             .spawn((
                 crate::Object {
                     id: object.id,
-                    session_id: session.0,
+                    session_id: session.id,
                 },
                 crate::ObjectState {
                     direction: object.direction,
@@ -151,9 +165,9 @@ pub(crate) fn finish_load_map(
 }
 
 pub(crate) fn refresh_session(mut commands: Commands, session: Res<CurrentSession>) -> Result<()> {
-    if session.0 != u32::MAX {
+    if session.id != u32::MAX {
         commands
-            .spawn(make_post_request("session/refresh", &session.0)?)
+            .spawn(make_post_request("session/refresh", &session.id)?)
             .observe(observe_discard_response);
     }
     Ok(())
@@ -179,7 +193,7 @@ pub(crate) fn handle_reload_map(
         commands.entity(entity).despawn();
     });
     commands
-        .spawn(make_post_request("session/map", &session.0)?)
+        .spawn(make_post_request("session/map", &session.id)?)
         .observe(observe_reload_map);
     Ok(())
 }
@@ -210,7 +224,7 @@ fn observe_reload_map(
                 .spawn((
                     crate::Object {
                         id: object.id,
-                        session_id: session.0,
+                        session_id: session.id,
                     },
                     crate::ObjectState {
                         direction: object.direction,
@@ -237,5 +251,17 @@ pub(crate) fn reload_on_error(
 ) {
     if reader.read().next().is_some() {
         writer.write(ReloadMap);
+    }
+}
+
+pub(crate) fn restart_on_input(
+    mut reader: MessageReader<crate::PlayerAction>,
+    mut writer: MessageWriter<LoadMap>,
+    session: Res<CurrentSession>,
+) {
+    for action in reader.read() {
+        if matches!(action, crate::PlayerAction::Restart) {
+            writer.write(session.name.clone());
+        }
     }
 }

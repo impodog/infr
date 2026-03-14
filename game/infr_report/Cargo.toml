@@ -4,6 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.18.0", default-features = false }
+bevy = { version = "0.18.1", default-features = false }
 infr_client = { path = "../infr_client" }
 rand = "0.10.0"

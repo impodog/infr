@@ -192,21 +192,23 @@ def main():
     def equal_coord(x, y):
         return x[0] == y[0] and x[1] == y[1]
 
-    def save_data():
+    def save_data(final: bool):
         nonlocal args, data
         # Condense the output dict
         for object in data["objects"]:
-            if flags := object.get("flags"):
+            if (flags := object.get("flags")) is not None:
                 for index in range(len(flags) - 1, -1, -1):
                     if len(flags[index]) == 0:
                         del flags[index]
+                if final and len(flags) == 0:
+                    object.pop("flags")
 
         if background := data["meta"].get("background"):
             if len(background) == 0:
                 del data["meta"]["background"]
 
         with open(args.file, "w") as file:
-            json.dump(data, file)
+            json.dump(data, file, separators=(",", ":"))
 
     pygame.init()
 
@@ -302,7 +304,7 @@ def main():
                 if event.key == pygame.K_ESCAPE:
                     selected = dragged = ui_selected = None
                 elif event.key == pygame.K_s and hover_coord:
-                    save_data()
+                    save_data(False)
             elif event.type == pygame.KEYUP:
                 pressed.remove(event.key)
 
@@ -519,7 +521,7 @@ def main():
         if delta_time < 1 / FRAMERATE:
             time.sleep(1 / FRAMERATE - delta_time)
 
-    save_data()
+    save_data(True)
 
 
 if __name__ == "__main__":

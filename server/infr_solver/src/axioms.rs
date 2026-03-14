@@ -13,11 +13,19 @@ fn word_pushable_axiom(id: u32, map: &mut Map) {
     );
     map.always_check(consts::WORD_PUSH);
 }
+fn you_pushable_axiom(id: u32, map: &mut Map) {
+    map.assert_axiom(
+        id,
+        &Bool::new_const(consts::WORD_YOU).implies(Bool::new_const(consts::WORD_PUSH)),
+    );
+    map.always_check(consts::WORD_PUSH);
+}
 
 pub fn add_axioms(map: &mut Map, ids: impl IntoIterator<Item = u32>) {
     for id in ids {
         match id {
             1 => word_pushable_axiom(id, map),
+            2 => you_pushable_axiom(id, map),
             _ => {
                 log::warn!("Unknown axiom id number {id}");
             }
@@ -33,6 +41,8 @@ macro_rules! slice {
 pub static AXIOM_GROUPS: LazyLock<HashMap<&'static str, &'static [u32]>> = LazyLock::new(|| {
     HashMap::<&'static str, &'static [u32]>::from_iter([
         ("WordPushable", slice![1]),
-        ("All", slice![1]),
+        ("YouPushable", slice![2]),
+        ("Common", slice![1, 2]),
+        ("All", slice![1, 2]),
     ])
 });

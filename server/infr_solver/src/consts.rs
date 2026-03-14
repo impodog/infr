@@ -13,6 +13,7 @@ pub const OPERATOR_DOUBLE_ARROW: &str = "DoubleArrow";
 pub const ABSTRACT_NATURE: &str = "Word";
 
 // Some common groups for asserting axioms.
+pub const WORD_YOU: &str = "You";
 pub const WORD_PUSH: &str = "Push";
 
 /// The prefix for tracking map-specific rule inconsistency.

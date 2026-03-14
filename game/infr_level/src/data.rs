@@ -45,7 +45,7 @@ pub struct RoomData {
     pub coord: transfer::Coord,
 }
 
-default_wrapper!(UserCurrentRoom, Room, Room("entrance.wall_path".to_owned()));
+default_wrapper!(UserCurrentRoom, Room, Room("prelude.1".to_owned()));
 
 #[derive(Serialize, Deserialize, Resource, Debug, Clone, Default)]
 pub struct UserData {
